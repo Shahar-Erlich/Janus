@@ -2,7 +2,14 @@ name: janus
 
 services:
 
-  untrusted_pc:
+  untrusted_pc1:
+    image: alpine:latest
+    networks:
+      - untrusted_network
+    command: sh -c 'ip route del default && ip route add default via 192.168.0.254 && sleep infinity'
+    cap_add:
+      - NET_ADMIN
+  untrusted_pc2:
     image: alpine:latest
     networks:
       - untrusted_network
@@ -10,24 +17,22 @@ services:
     cap_add:
       - NET_ADMIN
 
-
   trusted_pc:
     image: alpine:latest
     networks:
       - trusted_network
     command: sh -c 'ip route del default && ip route add default via 192.168.1.254 && sleep infinity'
 
-    cap_add: 
+    cap_add:
       - NET_ADMIN
 
   janus_core:
-    image: alpine:latest
+    build: .
     networks:
       trusted_network:
-        ipv4_address: 192.168.1.254  
+        ipv4_address: 192.168.1.254
       untrusted_network:
         ipv4_address: 192.168.0.254
-    command: sleep infinity
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -42,7 +47,6 @@ services:
       - data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
-
 
 networks:
   untrusted_network:
@@ -63,4 +67,5 @@ networks:
 
 volumes:
   data:
+
 
