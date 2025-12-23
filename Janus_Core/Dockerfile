@@ -15,7 +15,7 @@ COPY Core.cpp .
 COPY Core.hpp .
 COPY entrypoint.sh .
 
-RUN g++ Core.cpp -o core -lmnl -lnetfilter_queue
+RUN g++ -std=gnu++20 Core.cpp -o core -lmnl -lnetfilter_queue
 
 RUN chmod +x entrypoint.sh
 

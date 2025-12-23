@@ -1,202 +1,196 @@
 #include "Core.hpp"
 
-static struct mnl_socket *nl;
-static std::vector<uint32_t> blacklist;
+Core::Core(uint16_t queueNum)
+    : m_queueNum{queueNum},
+      m_buffer(MNL_SOCKET_BUFFER_SIZE)
+{
+}
+Core::~Core() noexcept
+{
+    if (m_nlSocket)
+    {
+        mnl_socket_close(m_nlSocket);
+    }
+}
 
-uint32_t to_ipv4(const std::string &ip_str)
+void Core::addToBlackList(const std::string &ip)
 {
     uint32_t out;
-    if (inet_pton(AF_INET, ip_str.c_str(), &out) != 1)
-        throw std::runtime_error("Invalid IP address: " + ip_str);
-
-    return out; // already in network byte order
+    if (inet_pton(AF_INET, ip.c_str(), &out) != 1)
+        return;
+    m_blacklist.insert(out);
+}
+void Core::bindIPV4()
+{
+    auto *netLinkMsgHdr = nfq_nlmsg_put(
+        reinterpret_cast<char *>(m_buffer.data()),
+        NFQNL_MSG_CONFIG,
+        m_queueNum);
+    nfq_nlmsg_cfg_put_cmd(netLinkMsgHdr, AF_INET, NFQNL_CFG_CMD_BIND);      // bind to ipv4
+    mnl_socket_sendto(m_nlSocket, netLinkMsgHdr, netLinkMsgHdr->nlmsg_len); // send config message to kernel
+}
+void Core::configPacketCopy()
+{
+    nlmsghdr *netlinkHeader = nfq_nlmsg_put(reinterpret_cast<char *>(m_buffer.data()), NFQNL_MSG_CONFIG, m_queueNum);
+    nfq_nlmsg_cfg_put_params(netlinkHeader, NFQNL_COPY_PACKET, IP_MAXPACKET); // NFQNL_COPY_PACKET -> kernel will send full packet and not parts
+    mnl_socket_sendto(m_nlSocket, netlinkHeader, netlinkHeader->nlmsg_len);
 }
 
-static void nfq_send_verdict(int queue_num, uint32_t id, uint32_t src)
+int Core::mnlCallback(const nlmsghdr *netLinkHeader, void *data)
 {
-    std::unique_ptr<char[]> buf(new char[MNL_SOCKET_BUFFER_SIZE]);
-    struct nlmsghdr *nlh;
-    struct nlattr *nest;
-
-    nlh = nfq_nlmsg_put(buf.get(), NFQNL_MSG_VERDICT, queue_num);
-
-    if (std::find(blacklist.begin(), blacklist.end(), src) != blacklist.end()) // check if ip is in the list
-    {
-        nfq_nlmsg_verdict_put(nlh, id, NF_DROP);
-        std::cout << "IP " << src << " is blacklisted! dropping packet" << std::endl;
-    }
-    else
-    {
-        nfq_nlmsg_verdict_put(nlh, id, NF_ACCEPT);
-        std::cout << "Packet Accepted" << std::endl;
-    }
-
-    /* example to set the connmark. First, start NFQA_CT section: */
-    nest = mnl_attr_nest_start(nlh, NFQA_CT);
-
-    /* then, add the connmark attribute: */
-    mnl_attr_put_u32(nlh, CTA_MARK, htonl(42));
-    /* more conntrack attributes, e.g. CTA_LABELS could be set here */
-
-    /* end conntrack section */
-    mnl_attr_nest_end(nlh, nest);
-
-    if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0)
-    {
-        perror("mnl_socket_send");
-        exit(EXIT_FAILURE);
-    }
-}
-
-static int queue_cb(const struct nlmsghdr *nlh, void *data)
-{
-    struct nfqnl_msg_packet_hdr *ph = NULL;
-    struct nlattr *attr[NFQA_MAX + 1] = {};
-    uint32_t id = 0, skbinfo;
-    struct nfgenmsg *nfg;
-    uint16_t plen;
-    std::cout << "Got message!" << std::endl;
-
-    if (nfq_nlmsg_parse(nlh, attr) < 0)
-    {
-        perror("problems parsing");
-        return MNL_CB_ERROR;
-    }
-
-    nfg = (nfgenmsg *)mnl_nlmsg_get_payload(nlh);
-
-    // attr[] is an array where each index is an NFQUEUE attribute:
-    //  Attribute	        Meaning
-    //  NFQA_PACKET_HDR	    basic metadata about the packet (id, hook, protocol)
-    //  NFQA_PAYLOAD	    the actual packet bytes
-    //  NFQA_SKB_INFO	    flags like GRO/GSO/checksum-not-ready
-    //  NFQA_CAP_LEN	    original size before truncation
-    /* ^ to remember what every index means */
-    if (attr[NFQA_PACKET_HDR] == NULL)
-    {
-        std::cout << "metaheader not set\n"
-                  << stderr;
-        nfq_send_verdict(ntohs(nfg->res_id), id, 0); // ALWAYS return verdict!
-        return MNL_CB_OK;
-    }
-
-    ph = (nfqnl_msg_packet_hdr *)mnl_attr_get_payload(attr[NFQA_PACKET_HDR]);
-
-    plen = mnl_attr_get_payload_len(attr[NFQA_PAYLOAD]);
-    void *payload = mnl_attr_get_payload(attr[NFQA_PAYLOAD]);
-    unsigned char *packet = static_cast<unsigned char *>(payload);
-    struct iphdr *ip = reinterpret_cast<struct iphdr *>(packet);
-
-    skbinfo = attr[NFQA_SKB_INFO] ? ntohl(mnl_attr_get_u32(attr[NFQA_SKB_INFO])) : 0;
-
-    if (attr[NFQA_CAP_LEN])
-    {
-        uint32_t orig_len = ntohl(mnl_attr_get_u32(attr[NFQA_CAP_LEN]));
-        if (orig_len != plen)
-            std::cout << "truncated ";
-    }
-
-    if (skbinfo & NFQA_SKB_GSO)
-        std::cout << "GSO ";
-
-    id = ntohl(ph->packet_id);
-    std::cout << "packet received (id=" << id << ", hw = " << ntohs(ph->hw_protocol) << ", hook = " << ph->hook << ", payload len = " << plen << std::endl;
-
-    /*
-     * ip/tcp checksums are not yet valid, e.g. due to GRO/GSO.
-     * The application should behave as if the checksums are correct.
-     *
-     * If these packets are later forwarded/sent out, the checksums will
-     * be corrected by kernel/hardware.
-     */
-    if (skbinfo & NFQA_SKB_CSUMNOTREADY)
-        std::cout << ", checksum not ready";
-    std::cout << ")";
-
-    nfq_send_verdict(ntohs(nfg->res_id), id, ip->saddr);
-
+    std::cout << "Got Packet." << std::endl;
+    static_cast<Core *>(data)->handlePacket(netLinkHeader);
     return MNL_CB_OK;
 }
 
-int main(int argc, char *argv[])
+Packet Core::parsePacket(nlattr *const attr[])
 {
-    blacklist.push_back(to_ipv4("192.168.0.2"));
+    Packet parsedPacket{};
 
-    /* largest possible packet payload, plus netlink data overhead: */
-    size_t sizeof_buf = 0xffff + (MNL_SOCKET_BUFFER_SIZE / 2);
-    std::unique_ptr<char[]> buf(new char[sizeof_buf]);
+    auto *rawPayloadBytes = static_cast<const uint8_t *>(mnl_attr_get_payload(attr[NFQA_PAYLOAD]));
+    auto payloadLength = mnl_attr_get_payload_len(attr[NFQA_PAYLOAD]);
 
-    struct nlmsghdr *nlh;
-    int ret;
-    unsigned int portid, queue_num;
-    queue_num = 0;
+    std::span<const uint8_t> packetBytes(rawPayloadBytes, payloadLength); // span so we dont mess with the actual packet
+    parsedPacket.ip = reinterpret_cast<const iphdr *>(packetBytes.data());
+    // ihl = internet header length
+    const std::size_t ipLength = parsedPacket.ip->ihl * WORD_BYTE; // ihl is in words, total_len is in bytes
+    const std::size_t transportStart = ipLength;
+    const std::size_t totalDataLength = ntohs(parsedPacket.ip->tot_len);
 
-    nl = mnl_socket_open(NETLINK_NETFILTER);
-    if (nl == NULL)
+    if (ipLength > totalDataLength)
+        return parsedPacket;
+
+    const std::size_t transportLength = totalDataLength - ipLength;
+    parsedPacket.transportBytes = packetBytes.subspan(transportStart, transportLength);
+
+    switch (parsedPacket.ip->protocol)
     {
-        perror("mnl_socket_open");
-        exit(EXIT_FAILURE);
+    case IPPROTO_TCP:
+    {
+        auto *tcp = reinterpret_cast<const tcphdr *>(parsedPacket.transportBytes.data());
+        const std::size_t dataOFfset = tcp->doff * WORD_BYTE; // doff = data offset
+        if (dataOFfset <= parsedPacket.transportBytes.size())
+            parsedPacket.applicationBytes = parsedPacket.transportBytes.subspan(dataOFfset);
+        break;
+    }
+    case IPPROTO_UDP:
+    {
+        auto *udp = reinterpret_cast<const udphdr *>(parsedPacket.transportBytes.data());
+        const std::size_t dataOFfset = sizeof(udphdr);
+        const std::size_t udpLength = ntohs(udp->len);
+        if (udpLength > dataOFfset)
+            parsedPacket.applicationBytes = parsedPacket.transportBytes.subspan(dataOFfset, udpLength - dataOFfset);
+        break;
+    }
+    case IPPROTO_ICMP:
+    {
+        const std::size_t dataOFfset = sizeof(struct icmphdr);
+        if (dataOFfset <= parsedPacket.transportBytes.size())
+            parsedPacket.applicationBytes = parsedPacket.transportBytes.subspan(dataOFfset);
+
+        break;
+    }
+    }
+    std::cout << "packet parsed!" << std::endl;
+
+    return parsedPacket;
+}
+void Core::sendVerdict(uint32_t id, std::size_t drop)
+{
+    nlmsghdr *nlh = nfq_nlmsg_put(reinterpret_cast<char *>(m_buffer.data()), NFQNL_MSG_VERDICT, m_queueNum);
+    nfq_nlmsg_verdict_put(nlh, id, drop);
+
+    mnl_socket_sendto(m_nlSocket, nlh, nlh->nlmsg_len);
+
+    if (drop)
+        return;
+    else
+        return;
+}
+void Core::handlePacket(const nlmsghdr *netLinkHeader)
+{
+    // NFQUEUE netlink attribute indices (NFQA_*)
+    //
+    // Each index refers to a specific netlink attribute parsed from the kernel.
+    // After nfq_nlmsg_parse(), attr[X] is either nullptr or points to that attribute.
+
+    // NFQA_PACKET_HDR      - Per-packet metadata (packet_id, hw_protocol, hook)
+    //                        REQUIRED to send a verdict back to the kernel
+
+    // NFQA_PAYLOAD         - Raw packet bytes (L3/L4 depending on mode)
+    //                        Used for IP/TCP/UDP/application parsing
+
+    nlattr *attr[NFQA_MAX + 1]{};
+
+    if (nfq_nlmsg_parse(netLinkHeader, attr) < 0)
+    {
+        return;
+    }
+    if (!attr[NFQA_PACKET_HDR])
+    {
+        return;
+    }
+    auto *packetHeader = reinterpret_cast<nfqnl_msg_packet_hdr *>(mnl_attr_get_payload(attr[NFQA_PACKET_HDR]));
+    uint32_t packetID = ntohl(packetHeader->packet_id);
+
+    Packet parsedPacket = parsePacket(attr);
+
+    if (!parsedPacket.ip)
+    {
+        sendVerdict(packetID, NF_ACCEPT);
+        return;
+    }
+    // TODO: implement filters
+    if (m_blacklist.contains((parsedPacket.ip->saddr)))
+    {
+        sendVerdict(packetID, NF_DROP);
+    }
+    else
+    {
+        sendVerdict(packetID, NF_ACCEPT);
+    }
+}
+
+void Core::init()
+{
+    m_nlSocket = mnl_socket_open(NETLINK_NETFILTER);
+    if (!m_nlSocket)
+    {
+        return;
+    }
+    // TODO: change the 0 magic number (GROUPS)
+
+    if (mnl_socket_bind(m_nlSocket, 0, MNL_SOCKET_AUTOPID) < 0)
+    {
+        return;
     }
 
-    if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0)
+    bindIPV4();
+    configPacketCopy();
+
+    std::cout << "Finshed Setup. Starting core" << std::endl;
+    run();
+}
+
+void Core::run()
+{
+    bool running = true;
+    while (running)
     {
-        perror("mnl_socket_bind");
-        exit(EXIT_FAILURE);
-    }
-    portid = mnl_socket_get_portid(nl);
-
-    if (!buf)
-    {
-        perror("allocate receive buffer");
-        exit(EXIT_FAILURE);
-    }
-
-    nlh = nfq_nlmsg_put(buf.get(), NFQNL_MSG_CONFIG, queue_num);
-    nfq_nlmsg_cfg_put_cmd(nlh, AF_INET, NFQNL_CFG_CMD_BIND);
-
-    if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0)
-    {
-        perror("mnl_socket_send");
-        exit(EXIT_FAILURE);
-    }
-
-    nlh = nfq_nlmsg_put(buf.get(), NFQNL_MSG_CONFIG, queue_num);
-    nfq_nlmsg_cfg_put_params(nlh, NFQNL_COPY_PACKET, 0xffff);
-
-    mnl_attr_put_u32(nlh, NFQA_CFG_FLAGS, htonl(NFQA_CFG_F_GSO));
-    mnl_attr_put_u32(nlh, NFQA_CFG_MASK, htonl(NFQA_CFG_F_GSO));
-
-    if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0)
-    {
-        perror("mnl_socket_send");
-        exit(EXIT_FAILURE);
-    }
-
-    /* ENOBUFS is signalled to userspace when packets were lost
-     * on kernel side.  In most cases, userspace isn't interested
-     * in this information, so turn it off.
-     */
-    ret = 1;
-    mnl_socket_setsockopt(nl, NETLINK_NO_ENOBUFS, &ret, sizeof(int));
-
-    for (;;)
-    {
-        int ret = mnl_socket_recvfrom(nl, buf.get(), sizeof_buf);
-        if (ret == -1)
+        std::cout << "Waiting for message" << std::endl;
+        std::size_t receivedMessageLength = mnl_socket_recvfrom(m_nlSocket, m_buffer.data(), m_buffer.size());
+        if (receivedMessageLength <= 0)
         {
-            perror("mnl_socket_recvfrom");
             continue;
         }
-
-        ret = mnl_cb_run(buf.get(), ret, 0, mnl_socket_get_portid(nl), queue_cb, NULL);
-        if (ret <= 0)
-        {
-            // ZERO means “continue”, negative means “stop”, both are fine
-            continue;
-        }
+        // TODO: change the 0 magic number (SEQ NUMBER)
+        mnl_cb_run(m_buffer.data(), receivedMessageLength, 0, mnl_socket_get_portid(m_nlSocket), Core::mnlCallback, this);
     }
+}
 
-    mnl_socket_close(nl);
-
+int main()
+{
+    auto core = std::make_unique<Core>(QUEUE_NUM);
+    core->init();
     return 0;
 }
