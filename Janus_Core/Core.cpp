@@ -17,15 +17,15 @@ void Core::addToBlackList(const std::string &ip)
 {
     uint32_t out;
     if (inet_pton(AF_INET, ip.c_str(), &out) != 1)
+    {
+        Logger::error("Error while trying to parse IP to blacklist");
         return;
+    }
     m_blacklist.insert(out);
 }
 void Core::bindIPV4()
 {
-    auto *netLinkMsgHdr = nfq_nlmsg_put(
-        reinterpret_cast<char *>(m_buffer.data()),
-        NFQNL_MSG_CONFIG,
-        m_queueNum);
+    auto *netLinkMsgHdr = nfq_nlmsg_put(reinterpret_cast<char *>(m_buffer.data()), NFQNL_MSG_CONFIG, m_queueNum);
     nfq_nlmsg_cfg_put_cmd(netLinkMsgHdr, AF_INET, NFQNL_CFG_CMD_BIND);      // bind to ipv4
     mnl_socket_sendto(m_nlSocket, netLinkMsgHdr, netLinkMsgHdr->nlmsg_len); // send config message to kernel
 }
@@ -38,62 +38,63 @@ void Core::configPacketCopy()
 
 int Core::mnlCallback(const nlmsghdr *netLinkHeader, void *data)
 {
-    std::cout << "Got Packet." << std::endl;
+    Logger::log("Got packet");
     static_cast<Core *>(data)->handlePacket(netLinkHeader);
     return MNL_CB_OK;
 }
 
 Packet Core::parsePacket(nlattr *const attr[])
 {
-    Packet parsedPacket{};
+    Packet ParsedPacket{};
 
     auto *rawPayloadBytes = static_cast<const uint8_t *>(mnl_attr_get_payload(attr[NFQA_PAYLOAD]));
     auto payloadLength = mnl_attr_get_payload_len(attr[NFQA_PAYLOAD]);
 
     std::span<const uint8_t> packetBytes(rawPayloadBytes, payloadLength); // span so we dont mess with the actual packet
-    parsedPacket.ip = reinterpret_cast<const iphdr *>(packetBytes.data());
+    ParsedPacket.ip = reinterpret_cast<const iphdr *>(packetBytes.data());
     // ihl = internet header length
-    const std::size_t ipLength = parsedPacket.ip->ihl * WORD_BYTE; // ihl is in words, total_len is in bytes
+    const std::size_t ipLength = ParsedPacket.ip->ihl * WORD_BYTE; // ihl is in words, total_len is in bytes
     const std::size_t transportStart = ipLength;
-    const std::size_t totalDataLength = ntohs(parsedPacket.ip->tot_len);
+    const std::size_t totalDataLength = ntohs(ParsedPacket.ip->tot_len);
 
     if (ipLength > totalDataLength)
-        return parsedPacket;
+        Logger::error("Packet data length error");
+    return ParsedPacket;
 
     const std::size_t transportLength = totalDataLength - ipLength;
-    parsedPacket.transportBytes = packetBytes.subspan(transportStart, transportLength);
+    ParsedPacket.transportBytes = packetBytes.subspan(transportStart, transportLength);
 
-    switch (parsedPacket.ip->protocol)
+    switch (ParsedPacket.ip->protocol)
     {
     case IPPROTO_TCP:
     {
-        auto *tcp = reinterpret_cast<const tcphdr *>(parsedPacket.transportBytes.data());
+        auto *tcp = reinterpret_cast<const tcphdr *>(ParsedPacket.transportBytes.data());
         const std::size_t dataOFfset = tcp->doff * WORD_BYTE; // doff = data offset
-        if (dataOFfset <= parsedPacket.transportBytes.size())
-            parsedPacket.applicationBytes = parsedPacket.transportBytes.subspan(dataOFfset);
+        if (dataOFfset <= ParsedPacket.transportBytes.size())
+            ParsedPacket.applicationBytes = ParsedPacket.transportBytes.subspan(dataOFfset);
         break;
     }
     case IPPROTO_UDP:
     {
-        auto *udp = reinterpret_cast<const udphdr *>(parsedPacket.transportBytes.data());
+        auto *udp = reinterpret_cast<const udphdr *>(ParsedPacket.transportBytes.data());
         const std::size_t dataOFfset = sizeof(udphdr);
         const std::size_t udpLength = ntohs(udp->len);
         if (udpLength > dataOFfset)
-            parsedPacket.applicationBytes = parsedPacket.transportBytes.subspan(dataOFfset, udpLength - dataOFfset);
+            ParsedPacket.applicationBytes = ParsedPacket.transportBytes.subspan(dataOFfset, udpLength - dataOFfset);
         break;
     }
     case IPPROTO_ICMP:
     {
         const std::size_t dataOFfset = sizeof(struct icmphdr);
-        if (dataOFfset <= parsedPacket.transportBytes.size())
-            parsedPacket.applicationBytes = parsedPacket.transportBytes.subspan(dataOFfset);
+        if (dataOFfset <= ParsedPacket.transportBytes.size())
+            ParsedPacket.applicationBytes = ParsedPacket.transportBytes.subspan(dataOFfset);
 
         break;
     }
     }
-    std::cout << "packet parsed!" << std::endl;
+    Logger::log("Packet parsed");
 
-    return parsedPacket;
+    return ParsedPacket;
 }
 void Core::sendVerdict(uint32_t id, std::size_t drop)
 {
@@ -103,9 +104,15 @@ void Core::sendVerdict(uint32_t id, std::size_t drop)
     mnl_socket_sendto(m_nlSocket, nlh, nlh->nlmsg_len);
 
     if (drop)
+    {
+        Logger::log("Packet approved");
         return;
+    }
     else
+    {
+        Logger::log("Packet Denied");
         return;
+    }
 }
 void Core::handlePacket(const nlmsghdr *netLinkHeader)
 {
@@ -124,24 +131,26 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
 
     if (nfq_nlmsg_parse(netLinkHeader, attr) < 0)
     {
+        Logger::error("Error while parsing netlink header");
         return;
     }
     if (!attr[NFQA_PACKET_HDR])
     {
+        Logger::error("No NFQA packet header");
         return;
     }
     auto *packetHeader = reinterpret_cast<nfqnl_msg_packet_hdr *>(mnl_attr_get_payload(attr[NFQA_PACKET_HDR]));
     uint32_t packetID = ntohl(packetHeader->packet_id);
 
-    Packet parsedPacket = parsePacket(attr);
+    Packet ParsedPacket = parsePacket(attr);
 
-    if (!parsedPacket.ip)
+    if (!ParsedPacket.ip)
     {
         sendVerdict(packetID, NF_ACCEPT);
         return;
     }
     // TODO: implement filters
-    if (m_blacklist.contains((parsedPacket.ip->saddr)))
+    if (m_blacklist.contains((ParsedPacket.ip->saddr)))
     {
         sendVerdict(packetID, NF_DROP);
     }
@@ -156,19 +165,21 @@ void Core::init()
     m_nlSocket = mnl_socket_open(NETLINK_NETFILTER);
     if (!m_nlSocket)
     {
+        Logger::error("MNL Socket creating failed");
         return;
     }
     // TODO: change the 0 magic number (GROUPS)
 
     if (mnl_socket_bind(m_nlSocket, 0, MNL_SOCKET_AUTOPID) < 0)
     {
+        Logger::error("MNL Socker bind failed");
         return;
     }
 
     bindIPV4();
     configPacketCopy();
 
-    std::cout << "Finshed Setup. Starting core" << std::endl;
+    Logger::log("Finished setup. Starting core");
     run();
 }
 
@@ -177,7 +188,7 @@ void Core::run()
     bool running = true;
     while (running)
     {
-        std::cout << "Waiting for message" << std::endl;
+        Logger::log("Waiting for message");
         std::size_t receivedMessageLength = mnl_socket_recvfrom(m_nlSocket, m_buffer.data(), m_buffer.size());
         if (receivedMessageLength <= 0)
         {
@@ -191,6 +202,7 @@ void Core::run()
 int main()
 {
     auto core = std::make_unique<Core>(QUEUE_NUM);
+    core->addToBlackList("192.168.0.10"); // untrusted pc 1
     core->init();
     return 0;
 }

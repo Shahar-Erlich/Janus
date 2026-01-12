@@ -23,6 +23,8 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <libmnl/libmnl.h>
 
+#include "../Logger/Logger.hpp"
+
 #define QUEUE_NUM 0
 #define WORD_BYTE 4
 #define UDP 0

@@ -1,0 +1,31 @@
+cmake_minimum_required(VERSION 3.16)
+project(Janus LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+#Logger
+add_library(janus_logger STATIC Logger/Logger.cpp)
+
+target_include_directories(janus_logger PUBLIC ${PROJECT_SOURCE_DIR}/Logger)
+
+#packet
+add_library(packet STATIC Parsed_Packet/Parsed_Packet.cpp Pcap_Parser/Pcap_Parser.cpp)
+target_include_directories(packet PUBLIC ${PROJECT_SOURCE_DIR}/Parsed_Packet ${PROJECT_SOURCE_DIR}/Pcap_Parser)
+target_link_libraries(packet janus_logger Pcap++ Packet++ Common++ pcap)
+
+#Core
+add_executable(janus_core Janus_Core/Core.cpp)
+
+target_include_directories(janus_core PRIVATE ${PROJECT_SOURCE_DIR}/Janus_Core)
+
+target_link_libraries(janus_core janus_logger mnl netfilter_queue)
+
+
+#main
+add_executable(main main.cpp)
+
+target_include_directories(main PRIVATE ${PROJECT_SOURCE_DIR})
+
+target_link_libraries(main janus_logger packet)
