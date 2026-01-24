@@ -18,10 +18,13 @@ services:
     entrypoint: ./entrypoint.sh
     healthcheck:
       test: [ "CMD", "sh", "-c", "grep -q '0' /proc/net/netfilter/nfnetlink_queue" ]
-      interval: 2s
-      timeout: 5s
-      retries: 5
-      start_period: 2s
+      interval: 1s
+      #timeout: 2s
+      retries: 3
+      #start_period: 2s
+    volumes:
+      - ./Blacklist_Handler/blacklists:/blacklists
+
 
   #Untrusted 1
   untrusted_1:
@@ -34,7 +37,8 @@ services:
     volumes:
       - ./Pcap_Parser:/pcaps
     networks:
-      - untrusted_network
+      untrusted_network:
+        ipv4_address: 192.168.0.10
     depends_on:
       janus_core:
         condition: service_healthy

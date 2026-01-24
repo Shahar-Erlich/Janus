@@ -1,5 +1,7 @@
 #include "Core.hpp"
-
+#include "../Policy_Handler/Packet_Policy.hpp"
+#include "../Blacklist_Handler/Blacklist_Handler.hpp"
+#include "../Pcap_Parser/Pcap_Parser.hpp"
 Core::Core(uint16_t queueNum)
     : m_queueNum{queueNum},
       m_buffer(MNL_SOCKET_BUFFER_SIZE)
@@ -13,16 +15,6 @@ Core::~Core() noexcept
     }
 }
 
-void Core::addToBlackList(const std::string &ip)
-{
-    uint32_t out;
-    if (inet_pton(AF_INET, ip.c_str(), &out) != 1)
-    {
-        Logger::error("Error while trying to parse IP to blacklist");
-        return;
-    }
-    m_blacklist.insert(out);
-}
 void Core::bindIPV4()
 {
     auto *netLinkMsgHdr = nfq_nlmsg_put(reinterpret_cast<char *>(m_buffer.data()), NFQNL_MSG_CONFIG, m_queueNum);
@@ -142,21 +134,26 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
     auto *packetHeader = reinterpret_cast<nfqnl_msg_packet_hdr *>(mnl_attr_get_payload(attr[NFQA_PACKET_HDR]));
     uint32_t packetID = ntohl(packetHeader->packet_id);
 
-    Packet ParsedPacket = parsePacket(attr);
+    Packet structPacket = parsePacket(attr);
 
-    if (!ParsedPacket.ip)
+    if (!structPacket.ip)
     {
         sendVerdict(packetID, NF_ACCEPT);
         return;
     }
-    // TODO: implement filters
-    if (m_blacklist.contains((ParsedPacket.ip->saddr)))
+    auto parsedPacket = Parser::parsePacket(structPacket.ip, structPacket.applicationBytes);
+    // // TODO: implement filters
+    switch (packetPolicy::evaluatePacket(*parsedPacket) == Verdict::DROP)
     {
+    case Verdict::DROP:
         sendVerdict(packetID, NF_DROP);
-    }
-    else
-    {
+        break;
+    case Verdict::INSPECT:
+        // Implement inspection
+        break;
+    case Verdict::ALLOW:
         sendVerdict(packetID, NF_ACCEPT);
+        break;
     }
 }
 
@@ -202,7 +199,8 @@ void Core::run()
 int main()
 {
     auto core = std::make_unique<Core>(QUEUE_NUM);
-    core->addToBlackList("192.168.0.10"); // untrusted pc 1
+    packetPolicy::readPolicyLists();
+    BlacklistHandler::addToIPBlacklist("192.168.0.10"); // untrusted pc 1
     core->init();
     return 0;
 }

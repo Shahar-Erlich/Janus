@@ -27,7 +27,6 @@
 
 #define QUEUE_NUM 0
 #define WORD_BYTE 4
-#define UDP 0
 
 struct Packet
 {
@@ -50,12 +49,7 @@ public:
      *
      */
     ~Core() noexcept;
-    /**
-     * @brief add IP adress to blacklist
-     *
-     * @param ip IP adress to blacklist
-     */
-    void addToBlackList(const std::string &ip);
+
     /**
      * @brief initialize the Core
      *
@@ -66,7 +60,6 @@ private:
     mnl_socket *m_nlSocket = nullptr;
     uint16_t m_queueNum;
     std::vector<uint8_t> m_buffer;
-    std::unordered_set<uint32_t> m_blacklist;
 
 private:
     /**
@@ -94,7 +87,7 @@ private:
      */
     static int mnlCallback(const nlmsghdr *netLinkHeader, void *data);
     /**
-     * @brief validate and parse packets
+     * @brief vWalidate and parse packets
      *
      * @param netLinkHeader network link header recieved from NFQUEUE
      */

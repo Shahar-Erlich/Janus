@@ -6,6 +6,9 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netinet/ip_icmp.h>
+#include <pcapplusplus/TcpLayer.h>
+#include <pcapplusplus/UdpLayer.h>
+#include <netinet/ip.h>
 
 #define PORT 5000
 
@@ -33,7 +36,56 @@ std::vector<uint8_t> Parser::extractPacketPayload(pcpp::IPv4Layer &ipv4)
 
 std::unique_ptr<ParsedPacket> Parser::parsePacket(pcpp::Packet packet)
 {
+    Logger::log("Parsing packet");
     return std::make_unique<ParsedPacket>(packet);
+}
+std::unique_ptr<ParsedPacket> Parser::parsePacket(const struct iphdr *ip, std::span<const uint8_t> applicationBytes)
+{
+    Logger::log("Parsing packet");
+    return std::make_unique<ParsedPacket>(ip, applicationBytes);
+}
+
+std::size_t Parser::extractPacketPort(pcpp::Packet &packet)
+{
+    Logger::log("Extracting packet port");
+    auto &ipv4 = Parser::extractIPv4Layer(packet);
+    auto transport = ipv4.getNextLayer();
+    auto protocol = transport->getProtocol();
+    std::size_t port;
+    switch (protocol)
+    {
+    case pcpp::TCP:
+    {
+        auto *tcpLayer = packet.getLayerOfType<pcpp::TcpLayer>();
+        return tcpLayer ? tcpLayer->getDstPort() : 0;
+    }
+
+    case pcpp::UDP:
+    {
+        auto *udpLayer = packet.getLayerOfType<pcpp::UdpLayer>();
+        return udpLayer ? udpLayer->getDstPort() : 0;
+    }
+
+    default:
+        Logger::error("Port not found");
+        return 0;
+    }
+
+    return port;
+}
+extern pcpp::ProtocolType Parser::mapIpProtocol(uint8_t proto)
+{
+    switch (proto)
+    {
+    case IPPROTO_TCP:
+        return pcpp::TCP;
+    case IPPROTO_UDP:
+        return pcpp::UDP;
+    case IPPROTO_ICMP:
+        return pcpp::ICMP;
+    default:
+        return pcpp::UnknownProtocol;
+    }
 }
 
 bool sendPacket(ParsedPacket &parsed)

@@ -7,6 +7,9 @@
 #include <vector>
 
 #include "../Parsed_Packet/Parsed_Packet.hpp"
+
+#include <netinet/ip.h>
+
 namespace Parser
 {
     /**
@@ -16,6 +19,7 @@ namespace Parser
      * @return pointer to a ParsedPacket object
      */
     std::unique_ptr<ParsedPacket> parsePacket(pcpp::Packet packet);
+    std::unique_ptr<ParsedPacket> parsePacket(const struct iphdr *ip, std::span<const uint8_t> applicationBytes);
     /**
      * @brief Extract the pcpp packet's source address
      *
@@ -44,6 +48,8 @@ namespace Parser
      * @return vector containing the pcpp package's payload bytes
      */
     std::vector<uint8_t> extractPacketPayload(pcpp::IPv4Layer &ipv4);
+    std::size_t extractPacketPort(pcpp::Packet &packet);
+    extern pcpp::ProtocolType mapIpProtocol(uint8_t proto);
 };
 
 /**
