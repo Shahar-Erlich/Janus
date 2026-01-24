@@ -1,7 +1,6 @@
 #include "../Parsed_Packet/Parsed_Packet.hpp"
 #include <iostream>
 #include <fstream>
-#include <unordered_set>
 #include "../Blacklist_Handler/Blacklist_Handler.hpp"
 
 enum Verdict
@@ -39,5 +38,9 @@ namespace packetPolicy
      */
     bool checkForInspection(ParsedPacket packet);
 
+    /**
+     * @brief read the ip and port blacklists and initialize
+     *
+     */
     void readPolicyLists();
 };

@@ -185,7 +185,7 @@ bool BlacklistHandler::isIPBlacklisted(ParsedPacket packet)
 }
 bool BlacklistHandler::isPortBlacklisted(ParsedPacket packet)
 {
-    if (m_portBlacklist.contains(packet.getSourcePort()))
+    if (m_portBlacklist.contains(packet.getDestinationPort()))
     {
         Logger::error("Port is blacklisted");
         return true;

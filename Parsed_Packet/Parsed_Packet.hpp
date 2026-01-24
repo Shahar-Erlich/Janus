@@ -47,12 +47,17 @@ public:
      * @return a vector containing the parsed packet's payload bytes
      */
     std::vector<uint8_t> getPacketPayload() const;
-    std::size_t getSourcePort() const;
+    /**
+     * @brief Get the packet's destination port
+     *
+     * @return std::size_t the packet's destination port
+     */
+    std::size_t getDestinationPort() const;
 
 private:
     pcpp::IPv4Address m_sourceAddress;
     pcpp::IPv4Address m_destionationAddress;
     pcpp::ProtocolType m_protocol;
     std::vector<uint8_t> m_packetPayload;
-    std::size_t m_port;
+    std::size_t m_destinationPort;
 };

@@ -6,7 +6,7 @@ ParsedPacket::ParsedPacket(pcpp::Packet &packet)
       m_destionationAddress(Parser::extractDestinationAddress(Parser::extractIPv4Layer(packet))),
       m_packetPayload(Parser::extractPacketPayload(Parser::extractIPv4Layer(packet))),
       m_protocol(Parser::extractIPv4Layer(packet).getNextLayer()->getProtocol()),
-      m_port(Parser::extractPacketPort(packet))
+      m_destinationPort(Parser::extractPacketPort(packet))
 {
 }
 ParsedPacket::ParsedPacket(const struct iphdr *ip, std::span<const uint8_t> applicationBytes)
@@ -35,7 +35,7 @@ std::vector<uint8_t> ParsedPacket::getPacketPayload() const
 {
     return m_packetPayload;
 }
-std::size_t ParsedPacket::getSourcePort() const
+std::size_t ParsedPacket::getDestinationPort() const
 {
-    return m_port;
+    return m_destinationPort;
 }
