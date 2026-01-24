@@ -37,9 +37,11 @@ Filters currently implemented (will be added to the list when implemented):
 - Aho-Corasick
 - Vector Filtering
 ### SPI
-- More Efficient Blacklisting(?)
+~~- More Efficient Blacklisting~~
 ### General
-- PCAP Reading and Proccesing
+~~- PCAP Reading and Proccesing~~  
+- Figure out TCP stream stuff  
+- Optimize
 - Database
 - Frontend for Statistics
 
