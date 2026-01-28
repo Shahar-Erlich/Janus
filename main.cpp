@@ -3,24 +3,31 @@
 #include "Parsed_Packet/Parsed_Packet.hpp"
 #include <pcapplusplus/PcapFileDevice.h>
 #include <memory>
+#include <print>
 
 int main()
 {
-    std::string pcapFilePath = "Pcap_Parser/pcaps/fake_traffic.pcap";
+    std::string pcapFilePath = "Pcap_Parser/pcaps/test_pcap.pcap";
     auto pcapFile = std::make_unique<pcpp::PcapFileReaderDevice>(pcapFilePath);
-    Logger::log("Opening pcap file");
     if (!pcapFile->open())
     {
         Logger::error("Failed to open pcap file");
         std::exit(1);
     }
-    Logger::log("Opened pcap file");
     pcpp::RawPacket rawPacket;
-    pcapFile->getNextPacket(rawPacket);
+    // pcapFile->getNextPacket(rawPacket);
     while (pcapFile->getNextPacket(rawPacket))
     {
         pcpp::Packet packet(&rawPacket);
-        Logger::log("Extracted packet");
+
+        // for (pcpp::Layer *layer = packet.getFirstLayer();
+        //      layer != nullptr;
+        //      layer = layer->getNextLayer())
+        // {
+        //     auto proto = layer->getProtocol();
+        //     Logger::log("Layer protocol: " + std::to_string((int)proto));
+        // }
+
         auto parsed = Parser::parsePacket(packet);
         Logger::log("Parsed packet");
         if (!parsed)
@@ -28,9 +35,13 @@ int main()
             Logger::error("Failed to parse packet");
             continue;
         }
-        Logger::log(parsed.get()->getSourceAddress().toString());
-        Logger::log(parsed.get()->getDestinationAddress().toString());
+        if (parsed->getProtocol() == pcpp::ICMP)
+            continue;
+        Logger::log("Source: " + parsed.get()->getSourceAddress().toString());
+        Logger::log("Destination " + parsed.get()->getDestinationAddress().toString());
         Logger::log(parsed.get()->getProtocol() == pcpp::TCP ? "TCP" : "UDP");
+        Logger::log("port: " + std::to_string(parsed->getDestinationPort()));
+
         sendPacket(*parsed);
     }
     return 0;

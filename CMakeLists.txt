@@ -30,7 +30,7 @@ add_executable(janus_core Janus_Core/Core.cpp)
 
 target_include_directories(janus_core PRIVATE ${PROJECT_SOURCE_DIR}/Janus_Core)
 
-target_link_libraries(janus_core janus_logger mnl netfilter_queue policy_handler blacklist_handler)
+target_link_libraries(janus_core janus_logger packet mnl netfilter_queue policy_handler blacklist_handler)
 
 
 #main

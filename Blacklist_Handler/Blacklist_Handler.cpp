@@ -64,7 +64,7 @@ void BlacklistHandler::addToIPBlacklist(const std::string &ip)
 
     if (!m_ipBlacklist.insert(addr.s_addr).second)
     {
-        Logger::error("Failed to insert " + ip + " to blacklist");
+        Logger::error(ip + " is already blacklisted");
         return;
     }
 

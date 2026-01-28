@@ -7,8 +7,9 @@ Verdict packetPolicy::evaluatePacket(ParsedPacket packet)
 {
     if (BlacklistHandler::isIPBlacklisted(packet) ||
         BlacklistHandler::isPortBlacklisted(packet) ||
-        !BlacklistHandler::isProtocolAllowed(packet) ||
-        !packetPolicy::hasPayload(packet))
+        !BlacklistHandler::isProtocolAllowed(packet) //||
+        // !packetPolicy::hasPayload(packet)
+    )
     {
         return Verdict::DROP;
     }

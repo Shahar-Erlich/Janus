@@ -3,7 +3,6 @@
 /* C++ Headers*/
 #include <iostream>
 #include <vector>
-#include <unordered_set>
 #include <memory>
 #include <span>
 
@@ -28,12 +27,7 @@
 #define QUEUE_NUM 0
 #define WORD_BYTE 4
 
-struct Packet
-{
-    const struct iphdr *ip;
-    std::span<const uint8_t> transportBytes;
-    std::span<const uint8_t> applicationBytes;
-};
+struct Packet_s;
 
 class Core
 {
@@ -98,7 +92,7 @@ private:
      * @param attr netlink attribute array parsed from header
      * @return Packet parsed packet in correct format
      */
-    Packet parsePacket(nlattr *const attr[]);
+    struct Packet_s parsePacket(nlattr *const attr[]);
     /**
      * @brief sends verdict to kernel about package
      *

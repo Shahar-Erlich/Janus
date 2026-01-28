@@ -10,8 +10,6 @@
 #include <pcapplusplus/UdpLayer.h>
 #include <netinet/ip.h>
 
-#define PORT 5000
-
 pcpp::IPv4Address Parser::extractSourceAddress(pcpp::IPv4Layer &ipv4)
 {
     return ipv4.getSrcIPv4Address();
@@ -36,42 +34,40 @@ std::vector<uint8_t> Parser::extractPacketPayload(pcpp::IPv4Layer &ipv4)
 
 std::unique_ptr<ParsedPacket> Parser::parsePacket(pcpp::Packet packet)
 {
-    Logger::log("Parsing packet");
     return std::make_unique<ParsedPacket>(packet);
 }
-std::unique_ptr<ParsedPacket> Parser::parsePacket(const struct iphdr *ip, std::span<const uint8_t> applicationBytes)
+std::unique_ptr<ParsedPacket> Parser::parsePacket(struct Packet_s packet)
 {
-    Logger::log("Parsing packet");
-    return std::make_unique<ParsedPacket>(ip, applicationBytes);
+    return std::make_unique<ParsedPacket>(packet);
 }
 
-std::size_t Parser::extractPacketPort(pcpp::Packet &packet)
+std::uint16_t Parser::extractPacketPort(pcpp::Packet &packet)
 {
     Logger::log("Extracting packet port");
     auto &ipv4 = Parser::extractIPv4Layer(packet);
     auto transport = ipv4.getNextLayer();
     auto protocol = transport->getProtocol();
-    std::size_t port;
+    std::uint16_t port;
     switch (protocol)
     {
     case pcpp::TCP:
     {
         auto *tcpLayer = packet.getLayerOfType<pcpp::TcpLayer>();
-        return tcpLayer ? tcpLayer->getDstPort() : 0;
+        port = tcpLayer ? tcpLayer->getDstPort() : 0;
+        return port;
     }
 
     case pcpp::UDP:
     {
         auto *udpLayer = packet.getLayerOfType<pcpp::UdpLayer>();
-        return udpLayer ? udpLayer->getDstPort() : 0;
+        port = udpLayer ? udpLayer->getDstPort() : 0;
+        return port;
     }
 
     default:
         Logger::error("Port not found");
         return 0;
     }
-
-    return port;
 }
 extern pcpp::ProtocolType Parser::mapIpProtocol(uint8_t proto)
 {
@@ -121,7 +117,7 @@ void sendTcpPacket(ParsedPacket &parsed)
 
     sockaddr_in destination{};
     destination.sin_family = AF_INET;
-    destination.sin_port = htons(PORT);
+    destination.sin_port = parsed.getDestinationPort();
     destination.sin_addr.s_addr = parsed.getDestinationAddress().toInt();
 
     if (connect(clientSocket, (sockaddr *)&destination, sizeof(destination)) < 0)
@@ -152,7 +148,7 @@ void sendUdpPacket(ParsedPacket &parsed)
 
     sockaddr_in destination{};
     destination.sin_family = AF_INET;
-    destination.sin_port = htons(PORT);
+    destination.sin_port = parsed.getDestinationPort();
     destination.sin_addr.s_addr = parsed.getDestinationAddress().toInt();
 
     ssize_t sent;
@@ -165,7 +161,6 @@ void sendUdpPacket(ParsedPacket &parsed)
              reinterpret_cast<sockaddr *>(&destination),
              sizeof(destination))) < 0)
         Logger::error("Package sending failed");
-    Logger::log("Sent to " + parsed.getDestinationAddress().toString());
 
     close(clientSocket);
 }
@@ -197,7 +192,6 @@ void sendIcmpPacket(ParsedPacket &parsed)
 
     sendto(clientSocket, &icmp, sizeof(icmp), 0,
            (sockaddr *)&destination, sizeof(destination));
-    Logger::log("Sent to " + parsed.getDestinationAddress().toString());
 
     close(clientSocket);
 }

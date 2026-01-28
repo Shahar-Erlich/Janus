@@ -16,7 +16,7 @@ public:
      *
      * @param packet
      */
-    ParsedPacket(const struct iphdr *ip, std::span<const uint8_t> applicationBytes);
+    ParsedPacket(struct Packet_s &packet);
     /**
      * @brief Destroy the ParsedPacket object
      *
@@ -52,12 +52,12 @@ public:
      *
      * @return std::size_t the packet's destination port
      */
-    std::size_t getDestinationPort() const;
+    std::uint16_t getDestinationPort() const;
 
 private:
     pcpp::IPv4Address m_sourceAddress;
     pcpp::IPv4Address m_destionationAddress;
     pcpp::ProtocolType m_protocol;
     std::vector<uint8_t> m_packetPayload;
-    std::size_t m_destinationPort;
+    std::uint16_t m_destinationPort;
 };

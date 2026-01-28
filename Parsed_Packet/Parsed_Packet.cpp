@@ -9,11 +9,12 @@ ParsedPacket::ParsedPacket(pcpp::Packet &packet)
       m_destinationPort(Parser::extractPacketPort(packet))
 {
 }
-ParsedPacket::ParsedPacket(const struct iphdr *ip, std::span<const uint8_t> applicationBytes)
-    : m_sourceAddress(ip->saddr),
-      m_destionationAddress(ip->daddr),
-      m_packetPayload(applicationBytes.begin(), applicationBytes.end()),
-      m_protocol(Parser::mapIpProtocol(ip->protocol))
+ParsedPacket::ParsedPacket(struct Packet_s &packet)
+    : m_sourceAddress(packet.ip->saddr),
+      m_destionationAddress(packet.ip->daddr),
+      m_packetPayload(packet.applicationBytes.begin(), packet.applicationBytes.end()),
+      m_protocol(Parser::mapIpProtocol(packet.ip->protocol)),
+      m_destinationPort(ntohs(packet.destination_port))
 {
 }
 
@@ -35,7 +36,7 @@ std::vector<uint8_t> ParsedPacket::getPacketPayload() const
 {
     return m_packetPayload;
 }
-std::size_t ParsedPacket::getDestinationPort() const
+std::uint16_t ParsedPacket::getDestinationPort() const
 {
     return m_destinationPort;
 }

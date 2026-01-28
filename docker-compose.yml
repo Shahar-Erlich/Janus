@@ -52,7 +52,8 @@ services:
     command: >
       sh -c "ip route del default && ip route add default via 192.168.1.254 && sleep infinity"
     networks:
-      - trusted_network
+      trusted_network:
+        ipv4_address: 192.168.1.20
   # portainer:
   #   image: portainer/portainer-ce:latest
   #   ports:
