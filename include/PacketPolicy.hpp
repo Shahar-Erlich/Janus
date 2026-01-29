@@ -1,7 +1,7 @@
-#include "../Parsed_Packet/Parsed_Packet.hpp"
+#include "./ParsedPacket.hpp"
 #include <iostream>
 #include <fstream>
-#include "../Blacklist_Handler/Blacklist_Handler.hpp"
+#include "./BlacklistHandler.hpp"
 
 enum Verdict
 {
@@ -10,7 +10,7 @@ enum Verdict
     INSPECT,
 };
 
-namespace packetPolicy
+namespace PacketPolicy
 {
 
     /**

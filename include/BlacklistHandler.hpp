@@ -1,7 +1,7 @@
 #include <arpa/inet.h>
 #include <unordered_set>
 #include <pcapplusplus/ProtocolType.h>
-#include "../Parsed_Packet/Parsed_Packet.hpp"
+#include "./ParsedPacket.hpp"
 
 #define IP_BLACKLIST_PATH "/blacklists/ip_blacklist.txt"
 #define PORT_BLACKLIST_PATH "/blacklists/port_blacklist.txt"
