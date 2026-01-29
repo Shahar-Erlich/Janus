@@ -1,13 +1,13 @@
-#include "Logger/Logger.hpp"
-#include "Pcap_Parser/Pcap_Parser.hpp"
-#include "Parsed_Packet/Parsed_Packet.hpp"
+#include "include/Logger.hpp"
+#include "include/PcapParser.hpp"
+#include "include/ParsedPacket.hpp"
 #include <pcapplusplus/PcapFileDevice.h>
 #include <memory>
 #include <print>
 
 int main()
 {
-    std::string pcapFilePath = "Pcap_Parser/pcaps/test_pcap.pcap";
+    std::string pcapFilePath = "../pcaps/test_pcap.pcap";
     auto pcapFile = std::make_unique<pcpp::PcapFileReaderDevice>(pcapFilePath);
     if (!pcapFile->open())
     {
@@ -28,7 +28,7 @@ int main()
         //     Logger::log("Layer protocol: " + std::to_string((int)proto));
         // }
 
-        auto parsed = Parser::parsePacket(packet);
+        auto parsed = PcapParser::parsePacket(packet);
         Logger::log("Parsed packet");
         if (!parsed)
         {

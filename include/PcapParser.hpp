@@ -6,7 +6,8 @@
 
 #include <vector>
 
-#include "../Parsed_Packet/Parsed_Packet.hpp"
+#include "ParsedPacket.hpp"
+#include <span>
 
 #include <netinet/ip.h>
 struct Packet_s
@@ -17,7 +18,7 @@ struct Packet_s
     uint16_t destination_port;
 };
 
-namespace Parser
+namespace PcapParser
 {
     /**
      * @brief parse a PcapPlusPlus packet into a ParsedPacket object

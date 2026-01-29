@@ -1,19 +1,19 @@
-#include "Parsed_Packet.hpp"
-#include "../Pcap_Parser/Pcap_Parser.hpp"
+#include "../include/ParsedPacket.hpp"
+#include "../include/PcapParser.hpp"
 
 ParsedPacket::ParsedPacket(pcpp::Packet &packet)
-    : m_sourceAddress(Parser::extractSourceAddress(Parser::extractIPv4Layer(packet))),
-      m_destionationAddress(Parser::extractDestinationAddress(Parser::extractIPv4Layer(packet))),
-      m_packetPayload(Parser::extractPacketPayload(Parser::extractIPv4Layer(packet))),
-      m_protocol(Parser::extractIPv4Layer(packet).getNextLayer()->getProtocol()),
-      m_destinationPort(Parser::extractPacketPort(packet))
+    : m_sourceAddress(PcapParser::extractSourceAddress(PcapParser::extractIPv4Layer(packet))),
+      m_destionationAddress(PcapParser::extractDestinationAddress(PcapParser::extractIPv4Layer(packet))),
+      m_packetPayload(PcapParser::extractPacketPayload(PcapParser::extractIPv4Layer(packet))),
+      m_protocol(PcapParser::extractIPv4Layer(packet).getNextLayer()->getProtocol()),
+      m_destinationPort(PcapParser::extractPacketPort(packet))
 {
 }
 ParsedPacket::ParsedPacket(struct Packet_s &packet)
     : m_sourceAddress(packet.ip->saddr),
       m_destionationAddress(packet.ip->daddr),
       m_packetPayload(packet.applicationBytes.begin(), packet.applicationBytes.end()),
-      m_protocol(Parser::mapIpProtocol(packet.ip->protocol)),
+      m_protocol(PcapParser::mapIpProtocol(packet.ip->protocol)),
       m_destinationPort(ntohs(packet.destination_port))
 {
 }

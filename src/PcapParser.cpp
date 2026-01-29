@@ -1,7 +1,7 @@
-#include "Pcap_Parser.hpp"
+#include "../include/PcapParser.hpp"
 #include <pcapplusplus/RawPacket.h>
 #include <sys/socket.h>
-#include "../Logger/Logger.hpp"
+#include "../include/Logger.hpp"
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -10,41 +10,41 @@
 #include <pcapplusplus/UdpLayer.h>
 #include <netinet/ip.h>
 
-pcpp::IPv4Address Parser::extractSourceAddress(pcpp::IPv4Layer &ipv4)
+pcpp::IPv4Address PcapParser::extractSourceAddress(pcpp::IPv4Layer &ipv4)
 {
     return ipv4.getSrcIPv4Address();
 }
 
-pcpp::IPv4Address Parser::extractDestinationAddress(pcpp::IPv4Layer &ipv4)
+pcpp::IPv4Address PcapParser::extractDestinationAddress(pcpp::IPv4Layer &ipv4)
 {
     return ipv4.getDstIPv4Address();
 }
 
-pcpp::IPv4Layer &Parser::extractIPv4Layer(pcpp::Packet &packet)
+pcpp::IPv4Layer &PcapParser::extractIPv4Layer(pcpp::Packet &packet)
 {
     return dynamic_cast<pcpp::IPv4Layer &>(*packet.getLayerOfType(pcpp::IPv4));
 }
 
-std::vector<uint8_t> Parser::extractPacketPayload(pcpp::IPv4Layer &ipv4)
+std::vector<uint8_t> PcapParser::extractPacketPayload(pcpp::IPv4Layer &ipv4)
 {
     auto *payload = ipv4.getNextLayer()->getLayerPayload();
     auto size = ipv4.getNextLayer()->getLayerPayloadSize();
     return std::vector<uint8_t>(payload, payload + size);
 }
 
-std::unique_ptr<ParsedPacket> Parser::parsePacket(pcpp::Packet packet)
+std::unique_ptr<ParsedPacket> PcapParser::parsePacket(pcpp::Packet packet)
 {
     return std::make_unique<ParsedPacket>(packet);
 }
-std::unique_ptr<ParsedPacket> Parser::parsePacket(struct Packet_s packet)
+std::unique_ptr<ParsedPacket> PcapParser::parsePacket(struct Packet_s packet)
 {
     return std::make_unique<ParsedPacket>(packet);
 }
 
-std::uint16_t Parser::extractPacketPort(pcpp::Packet &packet)
+std::uint16_t PcapParser::extractPacketPort(pcpp::Packet &packet)
 {
     Logger::log("Extracting packet port");
-    auto &ipv4 = Parser::extractIPv4Layer(packet);
+    auto &ipv4 = PcapParser::extractIPv4Layer(packet);
     auto transport = ipv4.getNextLayer();
     auto protocol = transport->getProtocol();
     std::uint16_t port;
@@ -69,7 +69,7 @@ std::uint16_t Parser::extractPacketPort(pcpp::Packet &packet)
         return 0;
     }
 }
-extern pcpp::ProtocolType Parser::mapIpProtocol(uint8_t proto)
+extern pcpp::ProtocolType PcapParser::mapIpProtocol(uint8_t proto)
 {
     switch (proto)
     {

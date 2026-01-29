@@ -1,23 +1,23 @@
-#include "Packet_Policy.hpp"
-#include "../Logger/Logger.hpp"
+#include "../include/PacketPolicy.hpp"
+#include "../include/Logger.hpp"
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-Verdict packetPolicy::evaluatePacket(ParsedPacket packet)
+Verdict PacketPolicy::evaluatePacket(ParsedPacket packet)
 {
     if (BlacklistHandler::isIPBlacklisted(packet) ||
         BlacklistHandler::isPortBlacklisted(packet) ||
         !BlacklistHandler::isProtocolAllowed(packet) //||
-        // !packetPolicy::hasPayload(packet)
+        // !PacketPolicy::hasPayload(packet)
     )
     {
         return Verdict::DROP;
     }
 
-    return packetPolicy::checkForInspection(packet) ? Verdict::INSPECT : Verdict::ALLOW;
+    return PacketPolicy::checkForInspection(packet) ? Verdict::INSPECT : Verdict::ALLOW;
 }
 
-bool packetPolicy::hasPayload(ParsedPacket packet)
+bool PacketPolicy::hasPayload(ParsedPacket packet)
 {
     if (packet.getPacketPayload().size() > 0)
     {
@@ -26,12 +26,12 @@ bool packetPolicy::hasPayload(ParsedPacket packet)
     Logger::error("Packet has no payload");
     return false;
 }
-void packetPolicy::readPolicyLists()
+void PacketPolicy::readPolicyLists()
 {
     BlacklistHandler::initializeIPList();
     BlacklistHandler::initializePortList();
 }
-bool packetPolicy::checkForInspection(ParsedPacket packet)
+bool PacketPolicy::checkForInspection(ParsedPacket packet)
 {
     return false;
 }

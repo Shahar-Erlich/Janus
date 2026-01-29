@@ -1,7 +1,7 @@
-#include "Core.hpp"
-#include "../Policy_Handler/Packet_Policy.hpp"
-#include "../Blacklist_Handler/Blacklist_Handler.hpp"
-#include "../Pcap_Parser/Pcap_Parser.hpp"
+#include "../include/Core.hpp"
+#include "../include/PacketPolicy.hpp"
+#include "../include/BlacklistHandler.hpp"
+#include "../include/PcapParser.hpp"
 
 Core::Core(uint16_t queueNum)
     : m_queueNum{queueNum},
@@ -155,10 +155,10 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
         sendVerdict(packetID, NF_ACCEPT);
         return;
     }
-    auto parsedPacket = Parser::parsePacket(structPacket);
+    auto parsedPacket = PcapParser::parsePacket(structPacket);
     Logger::log("Port is: " + std::to_string(parsedPacket->getDestinationPort()));
     // // TODO: implement filters
-    switch (packetPolicy::evaluatePacket(*parsedPacket))
+    switch (PacketPolicy::evaluatePacket(*parsedPacket))
     {
     case Verdict::DROP:
         sendVerdict(packetID, NF_DROP);
@@ -214,7 +214,7 @@ void Core::run()
 int main()
 {
     auto core = std::make_unique<Core>(QUEUE_NUM);
-    packetPolicy::readPolicyLists();
+    PacketPolicy::readPolicyLists();
     // BlacklistHandler::addToIPBlacklist("192.168.0.10"); // untrusted pc 1
     core->init();
     return 0;

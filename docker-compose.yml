@@ -23,7 +23,7 @@ services:
       retries: 3
       #start_period: 2s
     volumes:
-      - ./Blacklist_Handler/blacklists:/blacklists
+      - ./blacklists:/blacklists
 
 
   #Untrusted 1
@@ -35,7 +35,7 @@ services:
     command: >
       sh -c "ip route del default && ip route add default via 192.168.0.254 && ./build/main"
     volumes:
-      - ./Pcap_Parser:/pcaps
+      - ./pcaps:/pcaps
     networks:
       untrusted_network:
         ipv4_address: 192.168.0.10
