@@ -5,13 +5,17 @@ ParsedPacket::ParsedPacket(pcpp::Packet &packet)
     : m_sourceAddress(Parser::extractSourceAddress(Parser::extractIPv4Layer(packet))),
       m_destionationAddress(Parser::extractDestinationAddress(Parser::extractIPv4Layer(packet))),
       m_packetPayload(Parser::extractPacketPayload(Parser::extractIPv4Layer(packet))),
-      m_protocol(Parser::extractIPv4Layer(packet).getNextLayer()->getProtocol())
+      m_protocol(Parser::extractIPv4Layer(packet).getNextLayer()->getProtocol()),
+      m_destinationPort(Parser::extractPacketPort(packet))
 {
 }
-
-ParsedPacket::~ParsedPacket()
+ParsedPacket::ParsedPacket(struct Packet_s &packet)
+    : m_sourceAddress(packet.ip->saddr),
+      m_destionationAddress(packet.ip->daddr),
+      m_packetPayload(packet.applicationBytes.begin(), packet.applicationBytes.end()),
+      m_protocol(Parser::mapIpProtocol(packet.ip->protocol)),
+      m_destinationPort(ntohs(packet.destination_port))
 {
-    m_packetPayload.empty();
 }
 
 pcpp::IPv4Address ParsedPacket::getSourceAddress() const
@@ -31,4 +35,8 @@ pcpp::ProtocolType ParsedPacket::getProtocol() const
 std::vector<uint8_t> ParsedPacket::getPacketPayload() const
 {
     return m_packetPayload;
+}
+std::uint16_t ParsedPacket::getDestinationPort() const
+{
+    return m_destinationPort;
 }

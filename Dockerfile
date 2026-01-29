@@ -1,18 +1,17 @@
-FROM debian:bookworm-slim
+FROM alpine:latest
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apk add --no-cache \
+    build-base \
     cmake \
     git \
     libpcap-dev \
     libmnl-dev \
-    libnetfilter-queue-dev \
+    libnetfilter_queue-dev \
     iproute2 \
     iptables \
     netcat-openbsd \
-    && rm -rf /var/lib/apt/lists/*
+    linux-headers \
+    bash
 
 WORKDIR /tmp
 
@@ -20,9 +19,9 @@ RUN git clone --depth=1 https://github.com/seladb/PcapPlusPlus.git && \
     cd PcapPlusPlus && \
     mkdir build && cd build && \
     cmake .. && \
-    make -j$(nproc) && \
-    make install && \
-    ldconfig
+    make -j$(getconf _NPROCESSORS_ONLN) && \
+    make install
+
 
 WORKDIR /app
 COPY . .

@@ -1,7 +1,7 @@
 #pragma once
 #include <pcapplusplus/Packet.h>
 #include <pcapplusplus/IPv4Layer.h>
-
+#include <netinet/ip.h>
 class ParsedPacket
 {
 public:
@@ -12,10 +12,16 @@ public:
      */
     ParsedPacket(pcpp::Packet &packet);
     /**
+     * @brief Construct a new ParsedPacket object
+     *
+     * @param packet
+     */
+    ParsedPacket(struct Packet_s &packet);
+    /**
      * @brief Destroy the ParsedPacket object
      *
      */
-    ~ParsedPacket();
+    ~ParsedPacket() = default;
 
     /**
      * @brief Get the parsed packet's source address
@@ -41,10 +47,17 @@ public:
      * @return a vector containing the parsed packet's payload bytes
      */
     std::vector<uint8_t> getPacketPayload() const;
+    /**
+     * @brief Get the packet's destination port
+     *
+     * @return std::size_t the packet's destination port
+     */
+    std::uint16_t getDestinationPort() const;
 
 private:
     pcpp::IPv4Address m_sourceAddress;
     pcpp::IPv4Address m_destionationAddress;
     pcpp::ProtocolType m_protocol;
     std::vector<uint8_t> m_packetPayload;
+    std::uint16_t m_destinationPort;
 };

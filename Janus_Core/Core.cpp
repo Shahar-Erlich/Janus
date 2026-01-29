@@ -1,4 +1,7 @@
 #include "Core.hpp"
+#include "../Policy_Handler/Packet_Policy.hpp"
+#include "../Blacklist_Handler/Blacklist_Handler.hpp"
+#include "../Pcap_Parser/Pcap_Parser.hpp"
 
 Core::Core(uint16_t queueNum)
     : m_queueNum{queueNum},
@@ -13,16 +16,6 @@ Core::~Core() noexcept
     }
 }
 
-void Core::addToBlackList(const std::string &ip)
-{
-    uint32_t out;
-    if (inet_pton(AF_INET, ip.c_str(), &out) != 1)
-    {
-        Logger::error("Error while trying to parse IP to blacklist");
-        return;
-    }
-    m_blacklist.insert(out);
-}
 void Core::bindIPV4()
 {
     auto *netLinkMsgHdr = nfq_nlmsg_put(reinterpret_cast<char *>(m_buffer.data()), NFQNL_MSG_CONFIG, m_queueNum);
@@ -43,9 +36,9 @@ int Core::mnlCallback(const nlmsghdr *netLinkHeader, void *data)
     return MNL_CB_OK;
 }
 
-Packet Core::parsePacket(nlattr *const attr[])
+struct Packet_s Core::parsePacket(nlattr *const attr[])
 {
-    Packet ParsedPacket{};
+    struct Packet_s ParsedPacket{};
 
     auto *rawPayloadBytes = static_cast<const uint8_t *>(mnl_attr_get_payload(attr[NFQA_PAYLOAD]));
     auto payloadLength = mnl_attr_get_payload_len(attr[NFQA_PAYLOAD]);
@@ -58,8 +51,10 @@ Packet Core::parsePacket(nlattr *const attr[])
     const std::size_t totalDataLength = ntohs(ParsedPacket.ip->tot_len);
 
     if (ipLength > totalDataLength)
+    {
         Logger::error("Packet data length error");
-    return ParsedPacket;
+        return ParsedPacket;
+    }
 
     const std::size_t transportLength = totalDataLength - ipLength;
     ParsedPacket.transportBytes = packetBytes.subspan(transportStart, transportLength);
@@ -71,7 +66,10 @@ Packet Core::parsePacket(nlattr *const attr[])
         auto *tcp = reinterpret_cast<const tcphdr *>(ParsedPacket.transportBytes.data());
         const std::size_t dataOFfset = tcp->doff * WORD_BYTE; // doff = data offset
         if (dataOFfset <= ParsedPacket.transportBytes.size())
+        {
             ParsedPacket.applicationBytes = ParsedPacket.transportBytes.subspan(dataOFfset);
+            ParsedPacket.destination_port = ntohs(tcp->dest);
+        }
         break;
     }
     case IPPROTO_UDP:
@@ -80,14 +78,20 @@ Packet Core::parsePacket(nlattr *const attr[])
         const std::size_t dataOFfset = sizeof(udphdr);
         const std::size_t udpLength = ntohs(udp->len);
         if (udpLength > dataOFfset)
+        {
             ParsedPacket.applicationBytes = ParsedPacket.transportBytes.subspan(dataOFfset, udpLength - dataOFfset);
+            ParsedPacket.destination_port = ntohs(udp->dest);
+        }
+
         break;
     }
     case IPPROTO_ICMP:
     {
         const std::size_t dataOFfset = sizeof(struct icmphdr);
         if (dataOFfset <= ParsedPacket.transportBytes.size())
+        {
             ParsedPacket.applicationBytes = ParsedPacket.transportBytes.subspan(dataOFfset);
+        }
 
         break;
     }
@@ -96,6 +100,7 @@ Packet Core::parsePacket(nlattr *const attr[])
 
     return ParsedPacket;
 }
+
 void Core::sendVerdict(uint32_t id, std::size_t drop)
 {
     nlmsghdr *nlh = nfq_nlmsg_put(reinterpret_cast<char *>(m_buffer.data()), NFQNL_MSG_VERDICT, m_queueNum);
@@ -114,6 +119,7 @@ void Core::sendVerdict(uint32_t id, std::size_t drop)
         return;
     }
 }
+
 void Core::handlePacket(const nlmsghdr *netLinkHeader)
 {
     // NFQUEUE netlink attribute indices (NFQA_*)
@@ -142,21 +148,27 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
     auto *packetHeader = reinterpret_cast<nfqnl_msg_packet_hdr *>(mnl_attr_get_payload(attr[NFQA_PACKET_HDR]));
     uint32_t packetID = ntohl(packetHeader->packet_id);
 
-    Packet ParsedPacket = parsePacket(attr);
+    struct Packet_s structPacket = Core::parsePacket(attr);
 
-    if (!ParsedPacket.ip)
+    if (!structPacket.ip)
     {
         sendVerdict(packetID, NF_ACCEPT);
         return;
     }
-    // TODO: implement filters
-    if (m_blacklist.contains((ParsedPacket.ip->saddr)))
+    auto parsedPacket = Parser::parsePacket(structPacket);
+    Logger::log("Port is: " + std::to_string(parsedPacket->getDestinationPort()));
+    // // TODO: implement filters
+    switch (packetPolicy::evaluatePacket(*parsedPacket))
     {
+    case Verdict::DROP:
         sendVerdict(packetID, NF_DROP);
-    }
-    else
-    {
+        break;
+    case Verdict::INSPECT:
+        // Implement inspection
+        break;
+    case Verdict::ALLOW:
         sendVerdict(packetID, NF_ACCEPT);
+        break;
     }
 }
 
@@ -202,7 +214,8 @@ void Core::run()
 int main()
 {
     auto core = std::make_unique<Core>(QUEUE_NUM);
-    core->addToBlackList("192.168.0.10"); // untrusted pc 1
+    packetPolicy::readPolicyLists();
+    // BlacklistHandler::addToIPBlacklist("192.168.0.10"); // untrusted pc 1
     core->init();
     return 0;
 }
