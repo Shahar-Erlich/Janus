@@ -1,7 +1,10 @@
-#include "./ParsedPacket.hpp"
+#pragma once
+
 #include <iostream>
 #include <fstream>
-#include "./BlacklistHandler.hpp"
+#include "BlacklistHandler.hpp"
+#include <pcapplusplus/Packet.h>
+#include "VectorFilteringEngine.hpp"
 
 enum Verdict
 {
@@ -19,7 +22,7 @@ namespace PacketPolicy
      * @param packet packet to evaluate
      * @return Verdict DROP,ALLOW or INSPECT
      */
-    Verdict evaluatePacket(ParsedPacket packet);
+    Verdict evaluatePacket(const pcpp::Packet &packet);
 
     /**
      * @brief check if packet has a legal payload
@@ -28,7 +31,7 @@ namespace PacketPolicy
      * @return true has legal payload
      * @return false doesn't have a legal payload
      */
-    bool hasPayload(ParsedPacket packet);
+    bool hasPayload(pcpp::Packet packet);
     /**
      * @brief check if packet needs inspection
      *
@@ -36,11 +39,12 @@ namespace PacketPolicy
      * @return true packet needs inpsection
      * @return false packet doesn't need inspection
      */
-    bool checkForInspection(ParsedPacket packet);
+    bool checkForInspection(pcpp::Packet packet);
 
     /**
      * @brief read the ip and port blacklists and initialize
      *
      */
     void readPolicyLists();
+
 };

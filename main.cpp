@@ -1,13 +1,13 @@
-#include "include/Logger.hpp"
-#include "include/PcapParser.hpp"
-#include "include/ParsedPacket.hpp"
+#include "Logger.hpp"
+#include "PcapParser.hpp"
 #include <pcapplusplus/PcapFileDevice.h>
 #include <memory>
 #include <print>
+#include "TerminalColors.hpp"
 
 int main()
 {
-    std::string pcapFilePath = "../pcaps/test_pcap.pcap";
+    std::string pcapFilePath = "../pcaps/test_vector_filter.pcap";
     auto pcapFile = std::make_unique<pcpp::PcapFileReaderDevice>(pcapFilePath);
     if (!pcapFile->open())
     {
@@ -18,7 +18,7 @@ int main()
     // pcapFile->getNextPacket(rawPacket);
     while (pcapFile->getNextPacket(rawPacket))
     {
-        pcpp::Packet packet(&rawPacket);
+        const pcpp::Packet packet(&rawPacket);
 
         // for (pcpp::Layer *layer = packet.getFirstLayer();
         //      layer != nullptr;
@@ -28,21 +28,23 @@ int main()
         //     Logger::log("Layer protocol: " + std::to_string((int)proto));
         // }
 
-        auto parsed = PcapParser::parsePacket(packet);
-        Logger::log("Parsed packet");
-        if (!parsed)
-        {
-            Logger::error("Failed to parse packet");
+        // auto parsed = PcapParser::parsePacket(packet);
+        // Logger::log("Parsed packet");
+        // if (!parsed)
+        // {
+        //     Logger::error("Failed to parse packet");
+        //     continue;
+        // }
+        if (PcapParser::getTransportProtocol(packet) == pcpp::ICMP)
             continue;
-        }
-        if (parsed->getProtocol() == pcpp::ICMP)
-            continue;
-        Logger::log("Source: " + parsed.get()->getSourceAddress().toString());
-        Logger::log("Destination " + parsed.get()->getDestinationAddress().toString());
-        Logger::log(parsed.get()->getProtocol() == pcpp::TCP ? "TCP" : "UDP");
-        Logger::log("port: " + std::to_string(parsed->getDestinationPort()));
+        std::println("\n{}=========Packet Data:=========", TerminalColors::Yellow);
+        Logger::log("Source: " + PcapParser::extractSourceAddress(packet).toString());
+        Logger::log("Destination " + PcapParser::extractDestinationAddress(packet).toString());
+        Logger::log(PcapParser::getTransportProtocol(packet) == pcpp::TCP ? "TCP packet" : "UDP Packet");
+        Logger::log("port: " + std::to_string(PcapParser::extractPorts(packet)));
+        std::println("=============================={}\n", TerminalColors::Color_Off);
 
-        sendPacket(*parsed);
+        sendPacket(packet);
     }
     return 0;
 }

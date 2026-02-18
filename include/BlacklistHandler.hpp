@@ -1,7 +1,9 @@
+#pragma once
 #include <arpa/inet.h>
 #include <unordered_set>
 #include <pcapplusplus/ProtocolType.h>
-#include "./ParsedPacket.hpp"
+#include <string>
+#include <pcapplusplus/Packet.h>
 
 #define IP_BLACKLIST_PATH "/blacklists/ip_blacklist.txt"
 #define PORT_BLACKLIST_PATH "/blacklists/port_blacklist.txt"
@@ -66,7 +68,7 @@ namespace BlacklistHandler
      * @return true ip is blacklisted
      * @return false ip is not blacklisted
      */
-    bool isIPBlacklisted(ParsedPacket packet);
+    bool isIPBlacklisted(const pcpp::Packet &packet);
     /**
      * @brief check if packet protocol is allowed
      *
@@ -74,7 +76,7 @@ namespace BlacklistHandler
      * @return true protocol is allowed
      * @return false protocol isn't allowed
      */
-    bool isProtocolAllowed(ParsedPacket packet);
+    bool isProtocolAllowed(const pcpp::Packet &packet);
     /**
      * @brief check if packet source port is blacklisted
      *
@@ -82,5 +84,5 @@ namespace BlacklistHandler
      * @return true port is blacklisted
      * @return false port isn't blacklisted
      */
-    bool isPortBlacklisted(ParsedPacket packet);
+    bool isPortBlacklisted(const pcpp::Packet &packet);
 }

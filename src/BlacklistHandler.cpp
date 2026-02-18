@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include "../include/Logger.hpp"
+#include "../include/PcapParser.hpp"
 
 std::unordered_set<uint32_t> BlacklistHandler::m_ipBlacklist{};
 std::unordered_set<uint32_t> BlacklistHandler::m_portBlacklist{};
@@ -174,28 +175,40 @@ void BlacklistHandler::removeFromPortBlacklist(const std::string &port)
     }
 }
 
-bool BlacklistHandler::isIPBlacklisted(ParsedPacket packet)
+bool BlacklistHandler::isIPBlacklisted(const pcpp::Packet &packet)
 {
-    if (m_ipBlacklist.contains(packet.getSourceAddress().toInt()))
+    auto *ipLayer = packet.getLayerOfType<pcpp::IPv4Layer>();
+    if (!ipLayer)
+        return false;
+
+    uint32_t srcIP = ipLayer->getSrcIPv4Address().toInt();
+
+    if (m_ipBlacklist.contains(srcIP))
     {
         Logger::error("IP is blacklisted");
         return true;
     }
+
     return false;
 }
-bool BlacklistHandler::isPortBlacklisted(ParsedPacket packet)
+
+bool BlacklistHandler::isPortBlacklisted(const pcpp::Packet &packet)
 {
-    if (m_portBlacklist.contains(packet.getDestinationPort()))
+    auto port = PcapParser::extractPorts(packet);
+    if (!port)
+        return false;
+    if (m_portBlacklist.contains(port))
     {
         Logger::error("Port is blacklisted");
         return true;
     }
+
     return false;
 }
 
-bool BlacklistHandler::isProtocolAllowed(ParsedPacket packet)
+bool BlacklistHandler::isProtocolAllowed(const pcpp::Packet &packet)
 {
-    if (!m_allowedProtocols.contains(packet.getProtocol()))
+    if (!m_allowedProtocols.contains(PcapParser::getTransportProtocol(packet)))
     {
         Logger::error("Protocol not allowed");
         return false;

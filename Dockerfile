@@ -1,5 +1,6 @@
 FROM alpine:latest
 
+
 RUN apk add --no-cache \
     build-base \
     cmake \
@@ -25,6 +26,7 @@ RUN git clone --depth=1 https://github.com/seladb/PcapPlusPlus.git && \
 
 WORKDIR /app
 COPY . .
+
 
 RUN cmake -S . -B build && \
     cmake --build build

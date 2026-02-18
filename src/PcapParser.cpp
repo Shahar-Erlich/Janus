@@ -1,7 +1,7 @@
-#include "../include/PcapParser.hpp"
+#include "PcapParser.hpp"
 #include <pcapplusplus/RawPacket.h>
 #include <sys/socket.h>
-#include "../include/Logger.hpp"
+#include "Logger.hpp"
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -9,135 +9,150 @@
 #include <pcapplusplus/TcpLayer.h>
 #include <pcapplusplus/UdpLayer.h>
 #include <netinet/ip.h>
+#include "TcpStreamHandler.hpp"
+#include "TcpSessionTracker.hpp"
 
-pcpp::IPv4Address PcapParser::extractSourceAddress(pcpp::IPv4Layer &ipv4)
-{
-    return ipv4.getSrcIPv4Address();
-}
+auto sessionTracker = std::make_unique<TcpSessionTracker>();
 
-pcpp::IPv4Address PcapParser::extractDestinationAddress(pcpp::IPv4Layer &ipv4)
+namespace PcapParser
 {
-    return ipv4.getDstIPv4Address();
-}
-
-pcpp::IPv4Layer &PcapParser::extractIPv4Layer(pcpp::Packet &packet)
-{
-    return dynamic_cast<pcpp::IPv4Layer &>(*packet.getLayerOfType(pcpp::IPv4));
-}
-
-std::vector<uint8_t> PcapParser::extractPacketPayload(pcpp::IPv4Layer &ipv4)
-{
-    auto *payload = ipv4.getNextLayer()->getLayerPayload();
-    auto size = ipv4.getNextLayer()->getLayerPayloadSize();
-    return std::vector<uint8_t>(payload, payload + size);
-}
-
-std::unique_ptr<ParsedPacket> PcapParser::parsePacket(pcpp::Packet packet)
-{
-    return std::make_unique<ParsedPacket>(packet);
-}
-std::unique_ptr<ParsedPacket> PcapParser::parsePacket(struct Packet_s packet)
-{
-    return std::make_unique<ParsedPacket>(packet);
-}
-
-std::uint16_t PcapParser::extractPacketPort(pcpp::Packet &packet)
-{
-    Logger::log("Extracting packet port");
-    auto &ipv4 = PcapParser::extractIPv4Layer(packet);
-    auto transport = ipv4.getNextLayer();
-    auto protocol = transport->getProtocol();
-    std::uint16_t port;
-    switch (protocol)
+    pcpp::IPv4Address extractSourceAddress(const pcpp::Packet &packet)
     {
-    case pcpp::TCP:
-    {
-        auto *tcpLayer = packet.getLayerOfType<pcpp::TcpLayer>();
-        port = tcpLayer ? tcpLayer->getDstPort() : 0;
-        return port;
+        return extractIPv4Layer(packet).getSrcIPv4Address();
     }
 
-    case pcpp::UDP:
+    pcpp::IPv4Address extractDestinationAddress(const pcpp::Packet &packet)
     {
-        auto *udpLayer = packet.getLayerOfType<pcpp::UdpLayer>();
-        port = udpLayer ? udpLayer->getDstPort() : 0;
-        return port;
+        return extractIPv4Layer(packet).getDstIPv4Address();
     }
 
-    default:
-        Logger::error("Port not found");
+    pcpp::IPv4Layer &extractIPv4Layer(const pcpp::Packet &packet)
+    {
+        return dynamic_cast<pcpp::IPv4Layer &>(*packet.getLayerOfType(pcpp::IPv4));
+    }
+
+    std::vector<uint8_t> extractPacketPayload(const pcpp::Packet &packet)
+    {
+        auto &ipv4 = extractIPv4Layer(packet);
+        //  Logger::log("Got IPV4");
+        auto *payload = ipv4.getNextLayer()->getLayerPayload();
+        // Logger::log("Got payload");
+        auto size = ipv4.getNextLayer()->getLayerPayloadSize();
+        // Logger::log("Got payload size");
+        return std::vector<uint8_t>(payload, payload + size);
+    }
+
+    std::uint16_t extractPorts(const pcpp::Packet &packet)
+    {
+        if (auto *tcp = packet.getLayerOfType<pcpp::TcpLayer>())
+            return tcp->getDstPort();
+
+        if (auto *udp = packet.getLayerOfType<pcpp::UdpLayer>())
+            return udp->getDstPort();
+
         return 0;
     }
-}
-extern pcpp::ProtocolType PcapParser::mapIpProtocol(uint8_t proto)
-{
-    switch (proto)
+
+    pcpp::ProtocolType getTransportProtocol(const pcpp::Packet &packet)
     {
-    case IPPROTO_TCP:
-        return pcpp::TCP;
-    case IPPROTO_UDP:
-        return pcpp::UDP;
-    case IPPROTO_ICMP:
-        return pcpp::ICMP;
-    default:
+        if (packet.getLayerOfType<pcpp::TcpLayer>())
+        {
+
+            return pcpp::TCP;
+        }
+
+        if (packet.getLayerOfType<pcpp::UdpLayer>())
+        {
+            return pcpp::UDP;
+        }
         return pcpp::UnknownProtocol;
     }
-}
 
-bool sendPacket(ParsedPacket &parsed)
-{
-    auto protocol = parsed.getProtocol();
-    bool success = true;
-    switch (protocol)
-    {
-    case pcpp::TCP:
-        sendTcpPacket(parsed);
-        break;
-    case pcpp::UDP:
-        sendUdpPacket(parsed);
-        break;
-    case pcpp::ICMP:
-        sendIcmpPacket(parsed);
-        break;
-    default:
-        Logger::error("Unexpected protocol");
-        success = false;
-        break;
-    }
-    return success;
 }
-void sendTcpPacket(ParsedPacket &parsed)
+bool sendPacket(const pcpp::Packet &packet)
 {
-    std::size_t clientSocket;
-    if ((clientSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    auto protocol = PcapParser::getTransportProtocol(packet);
+
+    if (protocol == pcpp::TCP)
     {
-        Logger::error("Socket creation failed");
-        return;
+        sendTcpPacket(packet);
+        return true;
     }
+
+    if (protocol == pcpp::UDP)
+    {
+        sendUdpPacket(packet);
+        return true;
+    }
+    Logger::log("Unknown Protocol");
+    return false;
+}
+void sendTcpPacket(const pcpp::Packet &packet)
+{
+    int clientSocket;
+
+    auto *tcp = packet.getLayerOfType<pcpp::TcpLayer>();
+    if (!tcp)
+        return;
+
+    pcpp::ConnectionData connection;
+    connection.srcIP = PcapParser::extractSourceAddress(packet);
+    connection.dstIP = PcapParser::extractDestinationAddress(packet);
+    connection.srcPort = tcp->getSrcPort();
+    connection.dstPort = tcp->getDstPort();
 
     sockaddr_in destination{};
     destination.sin_family = AF_INET;
-    destination.sin_port = parsed.getDestinationPort();
-    destination.sin_addr.s_addr = parsed.getDestinationAddress().toInt();
+    destination.sin_port = htons(connection.dstPort);
+    destination.sin_addr.s_addr = connection.dstIP.getIPv4().toInt();
 
-    if (connect(clientSocket, (sockaddr *)&destination, sizeof(destination)) < 0)
+    if (sessionTracker->sessionExists(connection))
     {
-        Logger::error("Socket connection failed");
-        close(clientSocket);
-        return;
+        Logger::log("Session already exists");
+        clientSocket = sessionTracker->getSession(connection.flowKey).socket;
     }
-    ssize_t sent;
+    else
+    {
+        clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+        if (clientSocket < 0)
+        {
+            Logger::log("Socket creation failed");
+            return;
+        }
+        Logger::log("Session doesnt exist, created socket");
 
-    if ((sent = send(clientSocket,
-                     parsed.getPacketPayload().data(),
-                     parsed.getPacketPayload().size(),
-                     0)) < 0)
-        Logger::error("Package sending failed");
+        if (connect(clientSocket,
+                    (sockaddr *)&destination,
+                    sizeof(destination)) < 0)
+        {
+            Logger::log("Socket connection failed");
+            close(clientSocket);
+            return;
+        }
+        Logger::log("Connected socket");
 
-    close(clientSocket);
+        if (sessionTracker->addSession(connection, clientSocket))
+        {
+            Logger::log("Added connection to Tracker");
+        }
+    }
+    Logger::log("Moving to payload Extraction");
+    auto payload = PcapParser::extractPacketPayload(packet);
+
+    if (send(clientSocket,
+             payload.data(),
+             payload.size(),
+             0) < 0)
+    {
+        Logger::log("Package sending failed");
+    }
+    else
+    {
+        Logger::log("Sent TCP package successfully");
+    }
 }
 
-void sendUdpPacket(ParsedPacket &parsed)
+void sendUdpPacket(const pcpp::Packet &packet)
 {
     std::size_t clientSocket;
     if ((clientSocket = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
@@ -145,53 +160,55 @@ void sendUdpPacket(ParsedPacket &parsed)
         Logger::error("Socket creation failed");
         return;
     }
-
     sockaddr_in destination{};
     destination.sin_family = AF_INET;
-    destination.sin_port = parsed.getDestinationPort();
-    destination.sin_addr.s_addr = parsed.getDestinationAddress().toInt();
+    destination.sin_port = htons(PcapParser::extractPorts(packet));
+    destination.sin_addr.s_addr = PcapParser::extractDestinationAddress(packet).toInt();
 
     ssize_t sent;
-
+    auto payload = PcapParser::extractPacketPayload(packet);
     if ((sent = sendto(
              clientSocket,
-             parsed.getPacketPayload().data(),
-             parsed.getPacketPayload().size(),
+             payload.data(),
+             payload.size(),
              0,
              reinterpret_cast<sockaddr *>(&destination),
              sizeof(destination))) < 0)
-        Logger::error("Package sending failed");
-
-    close(clientSocket);
-}
-
-void sendIcmpPacket(ParsedPacket &parsed)
-{
-    int clientSocket;
-    if ((clientSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
     {
-        Logger::error("Socket creation failed");
-        return;
+        Logger::error("Package sending failed");
     }
-    sockaddr_in destination{};
-    destination.sin_family = AF_INET;
-    destination.sin_addr.s_addr = parsed.getDestinationAddress().toInt();
-
-    icmphdr icmp{};
-    icmp.type = ICMP_ECHO;
-    icmp.code = 0;
-    icmp.un.echo.id = 1;
-    icmp.un.echo.sequence = 1;
-    icmp.checksum = 0;
-
-    uint16_t *p = (uint16_t *)&icmp;
-    uint32_t sum = 0;
-    for (int i = 0; i < sizeof(icmp) / 2; i++)
-        sum += p[i];
-    icmp.checksum = ~((sum & 0xFFFF) + (sum >> 16));
-
-    sendto(clientSocket, &icmp, sizeof(icmp), 0,
-           (sockaddr *)&destination, sizeof(destination));
+    Logger::log("Sent udp package");
 
     close(clientSocket);
 }
+
+// void sendIcmpPacket(pcpp::Packet &parsed)
+// {
+//     int clientSocket;
+//     if ((clientSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
+//     {
+//         Logger::error("Socket creation failed");
+//         return;
+//     }
+//     sockaddr_in destination{};
+//     destination.sin_family = AF_INET;
+//     destination.sin_addr.s_addr = parsed.getDestinationAddress().toInt();
+
+//     icmphdr icmp{};
+//     icmp.type = ICMP_ECHO;
+//     icmp.code = 0;
+//     icmp.un.echo.id = 1;
+//     icmp.un.echo.sequence = 1;
+//     icmp.checksum = 0;
+
+//     uint16_t *p = (uint16_t *)&icmp;
+//     uint32_t sum = 0;
+//     for (int i = 0; i < sizeof(icmp) / 2; i++)
+//         sum += p[i];
+//     icmp.checksum = ~((sum & 0xFFFF) + (sum >> 16));
+
+//     sendto(clientSocket, &icmp, sizeof(icmp), 0,
+//            (sockaddr *)&destination, sizeof(destination));
+
+//     close(clientSocket);
+// }

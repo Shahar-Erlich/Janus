@@ -1,10 +1,19 @@
-#include "../include/Logger.hpp"
+#include "Logger.hpp"
+#include "TerminalColors.hpp"
+#include <print>
 
 void Logger::log(std::string log)
 {
-    std::clog << "[System] " << log.c_str() << std::endl;
+    std::println(stdout, "[System] {}", log);
+    std::fflush(stdout);
 }
+
 void Logger::error(std::string error)
 {
-    std::cerr << "[Error] " << error.c_str() << std::endl;
+    std::println(
+        stderr,
+        "{}[Error] {}{}",
+        TerminalColors::Red,
+        error,
+        TerminalColors::Color_Off);
 }
