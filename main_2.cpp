@@ -7,7 +7,7 @@
 
 int main()
 {
-    std::string pcapFilePath = "../pcaps/10kPackets_1.pcap";
+    std::string pcapFilePath = "../pcaps/10kPackets_2.pcap";
     auto pcapFile = std::make_unique<pcpp::PcapFileReaderDevice>(pcapFilePath);
     if (!pcapFile->open())
     {
@@ -15,8 +15,8 @@ int main()
         std::exit(1);
     }
     pcpp::RawPacket rawPacket;
-    // pcapFile->getNextPacket(rawPacket);
     int i = 0;
+    // pcapFile->getNextPacket(rawPacket);
     while (pcapFile->getNextPacket(rawPacket))
     {
         const pcpp::Packet packet(&rawPacket);

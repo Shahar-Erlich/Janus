@@ -57,7 +57,7 @@ add_library(tcp_handler STATIC
     src/TcpStreamHandler.cpp
 )
 
-target_include_directories(packet
+target_include_directories(tcp_handler
     PUBLIC ${JANUS_INCLUDE_DIR}
 )
 
@@ -79,6 +79,7 @@ target_link_libraries(blacklist_handler
     PUBLIC packet
 )
 
+
 #policy
 add_library(policy_handler STATIC
     src/PacketPolicy.cpp
@@ -95,9 +96,23 @@ target_link_libraries(policy_handler
     PUBLIC vector_filter
 
 )
+#Aho Corasick
+add_library(aho_corasick STATIC
+    src/AhoCorasick.cpp
+)
+target_include_directories(aho_corasick 
+    PUBLIC ${JANUS_INCLUDE_DIR}
+)
+#icd
+add_library(icd_loader
+    src/IcdLoader.cpp
+)
+target_include_directories(icd_loader
+    PUBLIC ${JANUS_INCLUDE_DIR}
+)
 
 #core
-add_executable(janus_core
+add_library(janus_core
     src/Core.cpp
 )
 
@@ -114,6 +129,8 @@ target_link_libraries(janus_core
     mnl
     netfilter_queue
     vector_filter
+    aho_corasick
+    icd_loader
 
 )
 target_compile_options(janus_core PRIVATE -mavx2 -O3)
@@ -135,3 +152,52 @@ target_link_libraries(main
 
 )
 
+#main 2
+add_executable(main_2
+    main_2.cpp
+)
+
+target_include_directories(main_2
+    PRIVATE ${JANUS_INCLUDE_DIR}
+)
+
+target_link_libraries(main_2
+    PUBLIC janus_logger
+    PUBLIC packet
+    PUBLIC vector_filter
+
+)
+
+#main 3
+add_executable(main_3
+    main_3.cpp
+)
+
+target_include_directories(main_3
+    PRIVATE ${JANUS_INCLUDE_DIR}
+)
+
+target_link_libraries(main_3
+    PUBLIC janus_logger
+    PUBLIC packet
+    PUBLIC vector_filter
+
+)
+#janus
+add_executable(janus
+    src/Janus.cpp
+)
+
+target_include_directories(janus
+    PRIVATE ${JANUS_INCLUDE_DIR}
+)
+
+target_link_libraries(janus
+    PUBLIC janus_logger
+    PUBLIC packet
+    PUBLIC vector_filter
+    PUBLIC janus_core
+    PUBLIC policy_handler
+    PUBLIC tcp_handler
+
+)

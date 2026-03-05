@@ -23,11 +23,13 @@
 #include <libmnl/libmnl.h>
 
 #include "Logger.hpp"
-
+class PacketPolicy;
+#include "AhoCorasick.hpp"
+#include <atomic>
+#include <thread>
+#include <chrono>
 #define QUEUE_NUM 0
 #define WORD_BYTE 4
-
-struct Packet_s;
 
 class Core
 {
@@ -37,7 +39,7 @@ public:
      *
      * @param queueNum NFQ queue number to use
      */
-    explicit Core(uint16_t queueNum);
+    explicit Core(uint16_t queueNum, AhoCorasick &ac);
     /**
      * @brief Destroy the Core object
      *
@@ -54,6 +56,11 @@ private:
     mnl_socket *m_nlSocket = nullptr;
     uint16_t m_queueNum;
     std::vector<uint8_t> m_buffer;
+    std::vector<uint8_t> m_verdictBuffer;
+    std::unique_ptr<PacketPolicy> packetPolicy;
+    AhoCorasick &m_ahoCorasick;
+    std::atomic<uint64_t> packetCounter{0};
+    std::atomic<uint64_t> verdictCounter{0};
 
 private:
     /**

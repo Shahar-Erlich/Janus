@@ -11,8 +11,10 @@
 #include <netinet/ip.h>
 #include "TcpStreamHandler.hpp"
 #include "TcpSessionTracker.hpp"
+#include <mutex>
 
-auto sessionTracker = std::make_unique<TcpSessionTracker>();
+static auto sessionTracker = std::make_unique<TcpSessionTracker>();
+std::mutex sessionTrackerMutex;
 
 namespace PcapParser
 {
@@ -105,7 +107,7 @@ void sendTcpPacket(const pcpp::Packet &packet)
     destination.sin_family = AF_INET;
     destination.sin_port = htons(connection.dstPort);
     destination.sin_addr.s_addr = connection.dstIP.getIPv4().toInt();
-
+    std::lock_guard<std::mutex> lock(sessionTrackerMutex);
     if (sessionTracker->sessionExists(connection))
     {
         Logger::log("Session already exists");

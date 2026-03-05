@@ -1,15 +1,12 @@
 from scapy.all import *
 import random
 
-SRC = "192.168.0.10"
+SRC = "192.168.0.13"
 DST = "192.168.1.20"
 PORT = 8080
 
+TOTAL_PACKETS = 10000
 packets = []
-
-# -------------------------
-# Payload categories
-# -------------------------
 
 SAFE_PAYLOADS = [
     b"hello world",
@@ -23,15 +20,10 @@ DANGEROUS_PAYLOADS = [
     b"blkdiscard /dev/sda",
 ]
 
-# Fragmented versions (split anchors across packets)
 FRAGMENTED = [
     [b"mk", b"fs.ext4 /dev/sda"],
     [b"blkd", b"iscard /dev/sda"],
 ]
-
-# -------------------------
-# Packet helpers
-# -------------------------
 
 def tcp_packet(payload):
     sport = random.randint(20000, 60000)
@@ -41,44 +33,33 @@ def udp_packet(payload):
     sport = random.randint(20000, 60000)
     return IP(src=SRC, dst=DST) / UDP(sport=sport, dport=PORT) / payload
 
-# -------------------------
-# 1. Safe TCP traffic
-# -------------------------
 
-for _ in range(20):
-    payload = random.choice(SAFE_PAYLOADS)
-    packets.append(tcp_packet(payload))
+for _ in range(TOTAL_PACKETS):
 
-# -------------------------
-# 2. Dangerous TCP traffic
-# -------------------------
+    category = random.random()
 
-for _ in range(20):
-    payload = random.choice(DANGEROUS_PAYLOADS)
-    packets.append(tcp_packet(payload))
+    # 40% safe TCP
+    if category < 0.4:
+        payload = random.choice(SAFE_PAYLOADS)
+        packets.append(tcp_packet(payload))
 
-# -------------------------
-# 3. Fragmented streams
-# -------------------------
+    # 30% dangerous TCP
+    elif category < 0.7:
+        payload = random.choice(DANGEROUS_PAYLOADS)
+        packets.append(tcp_packet(payload))
 
-for _ in range(10):
-    parts = random.choice(FRAGMENTED)
-    for chunk in parts:
-        packets.append(tcp_packet(chunk))
+    # 20% fragmented TCP
+    elif category < 0.9:
+        parts = random.choice(FRAGMENTED)
+        for chunk in parts:
+            packets.append(tcp_packet(chunk))
 
-# -------------------------
-# 4. UDP noise
-# -------------------------
+    # 10% UDP
+    else:
+        payload = random.choice(SAFE_PAYLOADS)
+        packets.append(udp_packet(payload))
 
-for _ in range(20):
-    payload = random.choice(SAFE_PAYLOADS)
-    packets.append(udp_packet(payload))
 
-# -------------------------
-# Write PCAP
-# -------------------------
-
-wrpcap("test_vector_filter.pcap", packets)
+wrpcap("pcaps/10kPackets_3.pcap", packets)
 
 print(f"Generated {len(packets)} packets.")
-

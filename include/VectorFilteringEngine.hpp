@@ -26,7 +26,7 @@ public:
 
     std::vector<int> scanPayload(std::span<const std::uint8_t> payload) const;
     const std::string &describe(int id) const;
-    static VectorFilteringEngine &instance(); // accessor
+    bool anyHit(std::span<const std::uint8_t> payload) const;
 
 private:
     std::unordered_map<int, std::string> m_ruleDescriptions;
@@ -62,6 +62,7 @@ private:
         std::vector<int> ruleIDs;
 
         std::size_t lanesPadded = 0;
+        std::array<uint64_t, 4> firstByteBitmap{};
     };
 
     std::vector<Group> m_groups;

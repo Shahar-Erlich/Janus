@@ -1,50 +1,55 @@
 #pragma once
+#include <unordered_map>
+#include <vector>
+#include <span>
+#include <string>
 
-#include <iostream>
-#include <fstream>
-#include "BlacklistHandler.hpp"
 #include <pcapplusplus/Packet.h>
-#include "VectorFilteringEngine.hpp"
 
-enum Verdict
+#include "AhoCorasick.hpp"
+#include "VectorFilteringEngine.hpp"
+#include "TcpStreamHandler.hpp"
+#include "IcdLoader.hpp"
+
+enum class FinalVerdict
 {
     ALLOW,
-    DROP,
-    INSPECT,
+    DROP
 };
 
-namespace PacketPolicy
+struct Decision
 {
+    FinalVerdict verdict = FinalVerdict::ALLOW;
 
-    /**
-     * @brief evaluate and return a passing status for the packet
-     *
-     * @param packet packet to evaluate
-     * @return Verdict DROP,ALLOW or INSPECT
-     */
-    Verdict evaluatePacket(const pcpp::Packet &packet);
+    bool inspected = false;  // האם הופעל deep inspection
+    bool flagged = false;    // חשוד (גם אם allowed)
+    std::vector<int> vfHits; // ruleIds
+    std::string ahoInfo;     // מה Aho החזיר (אם יש)
+};
 
-    /**
-     * @brief check if packet has a legal payload
-     *
-     * @param packet packet to check
-     * @return true has legal payload
-     * @return false doesn't have a legal payload
-     */
-    bool hasPayload(pcpp::Packet packet);
-    /**
-     * @brief check if packet needs inspection
-     *
-     * @param packet packet to check
-     * @return true packet needs inpsection
-     * @return false packet doesn't need inspection
-     */
-    bool checkForInspection(pcpp::Packet packet);
+class PacketPolicy
+{
+public:
+    explicit PacketPolicy(AhoCorasick &ac);
 
-    /**
-     * @brief read the ip and port blacklists and initialize
-     *
-     */
     void readPolicyLists();
 
+    // זה הפונקציה שה-Core יקרא
+    Decision evaluate(const pcpp::Packet &packet);
+
+private:
+    // UDP scanning (shift + hits)
+    std::vector<int> scanUdpVf(std::span<const uint8_t> payload) const;
+
+    // מחליט action חמור ביותר בין ה-hits (BLOCK > FLAG > ALLOW), עם בדיקת proto
+    IcdRuleMeta::Action worstActionForHits(const std::vector<int> &hits, IcdRuleMeta::Proto proto) const;
+
+private:
+    AhoCorasick &ahoCorasick;
+
+    VectorFilteringEngine vectorEngine;
+    std::unordered_map<int, IcdRuleMeta> metaByRuleId;
+    int maxScanShiftBytes = 64;
+
+    TcpStreamHandler tcpHandler;
 };

@@ -29,19 +29,19 @@ bool TcpSessionTracker::sessionExists(const pcpp::ConnectionData &session)
 
 void TcpSessionTracker::printSessionTable()
 {
-    std::println("{}ACTIVE SESSIONS:\n================================================{}", TerminalColors::Green, TerminalColors::Color_Off);
-    for (const auto &session : m_activeSessions)
-    {
-        auto sessionData = session.second.sessionData;
-        std::println(
-            "{}{} / {} -> {} / {}\n================================================\n\n{}",
-            TerminalColors::Green,
-            sessionData.srcIP.toString(),
-            sessionData.srcPort,
-            sessionData.dstIP.toString(),
-            sessionData.dstPort,
-            TerminalColors::Color_Off);
-    }
+    // std::println("{}ACTIVE SESSIONS:\n================================================{}", TerminalColors::Green, TerminalColors::Color_Off);
+    // for (const auto &session : m_activeSessions)
+    // {
+    //     auto sessionData = session.second.sessionData;
+    //     std::println(
+    //         "{}{} / {} -> {} / {}\n================================================\n\n{}",
+    //         TerminalColors::Green,
+    //         sessionData.srcIP.toString(),
+    //         sessionData.srcPort,
+    //         sessionData.dstIP.toString(),
+    //         sessionData.dstPort,
+    //         TerminalColors::Color_Off);
+    // }
 }
 TcpSessionTracker::TcpConnection TcpSessionTracker::getSession(uint32_t flowKey)
 {

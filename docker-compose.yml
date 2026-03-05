@@ -9,7 +9,7 @@ services:
         ipv4_address: 192.168.1.254
       untrusted_network:
         ipv4_address: 192.168.0.254
-    command: ./build/janus_core
+    command: ./build/janus
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -17,14 +17,15 @@ services:
       - net.ipv4.ip_forward=1
     entrypoint: ./entrypoint.sh
     healthcheck:
-      test:
-        ["CMD", "sh", "-c", "grep -q '0' /proc/net/netfilter/nfnetlink_queue"]
+      test: [ "CMD", "sh", "-c", "grep -q '0' /proc/net/netfilter/nfnetlink_queue" ]
       interval: 1s
       #timeout: 2s
       retries: 3
       #start_period: 2s
     volumes:
       - ./blacklists:/blacklists
+      - ./dpi_rules.txt:/app/dpi_rules.txt
+      - ./icd.json:/app/icd.json
 
   #Untrusted 1
   untrusted_1:
@@ -33,7 +34,7 @@ services:
     cap_add:
       - NET_ADMIN
     command: >
-      sh -c "ip route del default && ip route add default via 192.168.0.254 && ./build/main"
+      sh -c "ip route del default && ip route add default via 192.168.0.254 && ./build/main&&sleep infinity"
     volumes:
       - ./pcaps:/pcaps
     networks:
@@ -42,17 +43,47 @@ services:
     depends_on:
       janus_core:
         condition: service_healthy
+  untrusted_2:
+    build: .
+    container_name: untrusted_2
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route del default && ip route add default via 192.168.0.254 && ./build/main_2"
+    volumes:
+      - ./pcaps:/pcaps
+    networks:
+      untrusted_network:
+        ipv4_address: 192.168.0.12
+    depends_on:
+      janus_core:
+        condition: service_healthy
+  untrusted_3:
+    build: .
+    container_name: untrusted_3
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route del default && ip route add default via 192.168.0.254 && ./build/main_3"
+    volumes:
+      - ./pcaps:/pcaps
+    networks:
+      untrusted_network:
+        ipv4_address: 192.168.0.13
+    depends_on:
+      janus_core:
+        condition: service_healthy
 
   #Trusted 1
   # sh -c "ip route del default && ip route add default via 192.168.1.254 && sleep infinity"
-
+  # > /dev/null
   trusted_1:
     build: .
     container_name: trusted_1
     cap_add:
       - NET_ADMIN
     command: >
-      sh -c "ip route del default && ip route add default via 192.168.1.254 && nc -l 8080"
+      sh -c "ip route del default && ip route add default via 192.168.1.254 && nc -lk -p 8080" 
     networks:
       trusted_network:
         ipv4_address: 192.168.1.20

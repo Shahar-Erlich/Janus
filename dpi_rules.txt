@@ -1,0 +1,453 @@
+$(CAT
+$(WHOAMI)
+$(cat
+(whoami)
+*
+/.ENV
+/.GIT/CONFIG
+/.env
+/.git/config
+/ACTUATOR/HEALTH
+/ADMIN/LOGIN
+/API-DOCS
+/API/V2/CONNECT
+/BIN/BASH
+/BIN/SH
+/CHECKIN
+/CLIENT/CHECKIN
+/CMD.PHP
+/ETC/HOSTS
+/ETC/PASSWD
+/ETC/SHADOW
+/GATE.PHP
+/HOME/
+/INSTALL.PHP
+/PANEL/LOGIN
+/PHPMYADMIN
+/PROC/SELF/ENVIRON
+/ROOT/.SSH
+/SERVER-STATUS
+/UPDATE.PHP
+/V2/_CATALOG
+/VAR/WWW/HTML
+/WP-ADMIN
+/ADMIN-AJAX.PHP
+/WP-LOGIN.PHP
+220
+CAT
+CURL
+LS
+WGET
+cat
+curl
+ls
+wget
+--
+</SCRIPT>
+</script>
+<AUDIO
+<BODYONLOAD=
+<EMBED
+<IFRAME
+<IMG
+<LINK
+<META
+<OBJECT
+<SCRIPT>
+<STYLE
+<SVG
+<VIDEO
+<audio
+<bodyonload=
+<embed
+<iframe
+<img
+<link
+<meta
+<object
+<script>
+<style
+<svg
+<video
+@@DATADIR
+@@VERSION
+@@datadir
+@@version
+ACCESS_TOKEN=
+ACUNETIX
+ALERT(
+AND 1=1
+AND 1=2
+API_KEY=
+ASSERT(_POST
+ATOB(
+AUTHORIZATION: BASIC
+AUTHORIZATION: BEARER
+AWS_SECRET_ACCESS_KEY
+Authorization: Basic
+Authorization: Bearer
+BASE64_DECODE(
+BASH -C
+BASH -I
+BEACON_INTERVAL=
+BEGIN OPENSSH PRIVATE KEY
+BEGIN PRIVATE KEY
+BEGIN RSA PRIVATE KEY
+BENCHMARK(
+BOOT.INI
+BOT_ID=
+C99.PHP
+C:
+CAST(
+CAT /ETC/PASSWD
+CAT /ETC/SHADOW
+CHAR(
+CHMOD +X
+CLIENT_SECRET
+CMD /C
+CMD.EXE
+CMD.PHP
+CONNECT
+CONTENT-DISPOSITION:
+CONTENT-LENGTH:
+CONVERT(
+CREATEREMOTETHREAD
+CURL HTTP
+Content-Disposition:
+Content-Length:
+CreateRemoteThread
+DATA:TEXT/HTML
+DB_PASSWORD
+DECLARE @
+DELETE /
+DIRBUSTER
+DOCUMENT.COOKIE
+DOCUMENT.LOCATION
+DROP DATABASE
+DROP TABLE
+EHLO
+EVAL(
+EVAL($_POST
+EXEC(
+EXPECT: 100-CONTINUE
+EXPRESSION(
+Expect: 100-continue
+FILE_GET_CONTENTS(
+FOPEN(
+FROMBASE64STRING
+FROMCHARCODE(
+FTP
+FWRITE(
+FromBase64String
+GET /ADMIN
+GET /admin
+GETPROCADDRESS
+GOBUSTER
+GROUP_CONCAT(
+GetProcAddress
+HAVING 1=1
+HELO
+HOST:
+Host:
+ID;
+IMAP
+INFORMATION_SCHEMA
+INNERHTML=
+INSERT INTO
+ISDEBUGGERPRESENT
+IsDebuggerPresent
+JAVASCRIPT:
+LOADLIBRARY
+LOAD_FILE(
+LoadLibrary
+MACHINE_ID=
+MASSCAN
+MOVE_UPLOADED_FILE(
+MOZILLA/4.0 (COMPATIBLE; MSIE 6.0;)
+MULTIPART/FORM-DATA
+MZ
+Mozilla/4.0 (compatible; MSIE 6.0;)
+NC -E
+NCHAR(
+NESSUS
+NETCAT
+NIKTO
+NMAP SCAN REPORT
+NVARCHAR(
+Nikto
+Nmap scan report
+ONCLICK=
+ONERROR=
+ONFOCUS=
+ONLOAD=
+ONMOUSEOVER=
+OPENVAS
+OR 1=1#
+OR 1=1--
+OR 1=2
+ORDER BY 1--
+OUTERHTML=
+OUTFILE
+PASS
+PASSTHRU(
+PASSWD=
+PASSWORD=
+PERL -E
+PHP -R
+PHPINFO()
+PK\x03\x04
+POP3
+POPEN(
+POST /API/V1/BEACON
+POST /LOGIN
+POST /api/v1/beacon
+POST /login
+POWERSHELL -ENC
+POWERSHELL IEX
+POWERSHELL.EXE
+PREG_REPLACE(
+PRIVATE KEY-----
+PROXY-CONNECTION:
+PUT /UPLOAD
+PUT /upload
+PYTHON -C
+Proxy-Connection:
+R57.PHP
+REGCREATEKEY
+REGSETVALUE
+RM -RF /
+RUBY -E
+RUNTIME.GETRUNTIME
+RegCreateKey
+RegSetValue
+Runtime.getRuntime
+SECRET_KEY=
+SELECT * FROM
+SET-COOKIE:
+SETWINDOWSHOOKEX
+SHELL.PHP
+SHELLEXECUTE
+SLEEP(
+SMTP
+SP_EXECUTESQL
+SQLMAP
+SRCDOC=
+SSH-
+SSH-ED25519
+SSH-RSA
+SUBPROCESS
+SYSTEM(
+SYSTEM($_GET
+Set-Cookie:
+SetWindowsHookEx
+ShellExecute
+TELNET
+THIS PROGRAM CANNOT BE RUN IN DOS MODE
+TRACE /
+TRANSFER-ENCODING: CHUNKED
+This program cannot be run in DOS mode
+Transfer-Encoding: chunked
+UNION ALL SELECT
+UNION SELECT
+UNION/**/SELECT
+USER
+USER-AGENT: CURL
+USER-AGENT: NMAP
+USER-AGENT: PYTHON-REQUESTS
+USER-AGENT: SQLMAP
+USER-AGENT: WGET
+User-Agent: Nmap
+User-Agent: curl
+User-Agent: python-requests
+User-Agent: sqlmap
+User-Agent: wget
+VARCHAR(
+VBSCRIPT:
+VIRTUALALLOC
+VirtualAlloc
+WAITFOR DELAY
+WGET HTTP
+WHOAMI
+WIN.INI
+WINEXEC
+WPSCAN
+WSO
+WinExec
+X-API-KEY
+X-FORWARDED-FOR:
+X-Forwarded-For:
+XP_CMDSHELL
+whoami
+access_token=
+acunetix
+alert(
+and 1=1
+and 1=2
+api_key=
+assert(_post
+atob(
+authorization: basic
+authorization: bearer
+aws_secret_access_key
+base64_decode(
+bash -c
+bash -i
+beacon_interval=
+begin openssh private key
+begin private key
+begin rsa private key
+benchmark(
+boot.ini
+bot_id=
+c99.php
+cast(
+cat /etc/passwd
+cat /etc/shadow
+char(
+chmod +x
+client_secret
+cmd /c
+cmd.exe
+cmd.php
+connect
+content-disposition:
+content-length:
+convert(
+createremotethread
+curl http
+data:text/html
+db_password
+declare @
+delete /
+dirbuster
+document.cookie
+document.location
+drop database
+drop table
+ehlo
+eval(
+eval($_post
+exec(
+expect: 100-continue
+expression(
+file_get_contents(
+fopen(
+fromcharcode(
+frombase64string
+ftp
+fwrite(
+get /admin
+getprocaddress
+gobuster
+group_concat(
+having 1=1
+helo
+host:
+id;
+imap
+information_schema
+innerhtml=
+insert into
+isdebuggerpresent
+javascript:
+load_file(
+loadlibrary
+machine_id=
+masscan
+move_uploaded_file(
+multipart/form-data
+mz
+nc -e
+nchar(
+nessus
+netcat
+nikto
+nmap scan report
+nvarchar(
+onclick=
+onerror=
+onfocus=
+onload=
+onmouseover=
+openvas
+or 1=1#
+or 1=1--
+or 1=2
+order by 1--
+outerhtml=
+outfile
+pass
+passthru(
+passwd=
+password=
+perl -e
+php -r
+phpinfo()
+pop3
+popen(
+post /api/v1/beacon
+post /login
+powershell -enc
+powershell iex
+powershell.exe
+preg_replace(
+private key-----
+proxy-connection:
+put /upload
+python -c
+r57.php
+regcreatekey
+regsetvalue
+rm -rf /
+ruby -e
+runtime.getruntime
+secret_key=
+select * from
+set-cookie:
+setwindowshookex
+shell.php
+shellexecute
+sleep(
+smtp
+sp_executesql
+sqlmap
+srcdoc=
+ssh-
+ssh-ed25519
+ssh-rsa
+subprocess
+system(
+system($_get
+telnet
+this program cannot be run in dos mode
+trace /
+transfer-encoding: chunked
+union all select
+union select
+union/**/select
+user
+user-agent: curl
+user-agent: nmap
+user-agent: python-requests
+user-agent: sqlmap
+user-agent: wget
+varchar(
+vbscript:
+virtualalloc
+waitfor delay
+wget http
+whoami
+win.ini
+winexec
+wpscan
+wso
+x-api-key
+x-forwarded-for:
+xp_cmdshell
+| BASH
+| SH
+| bash
+| sh
+\x7FELF
+\x90\x90\x90
+/admin

@@ -4,28 +4,6 @@
 #include <stdexcept>
 #include <print>
 
-VectorFilteringEngine &VectorFilteringEngine::instance()
-{
-    static VectorFilteringEngine engine = []()
-    {
-        std::println("Building VectorFilteringEngine...");
-
-        VectorFilteringEngine e;
-
-        std::vector<VFRule> rules;
-        rules.push_back(VFRule::fromASCII(1001, 0, "GET"));
-        rules.push_back(VFRule::fromASCII(1002, 0, "POS"));
-        rules.push_back(VFRule::fromASCII(2001, 0, "mkf"));
-        rules.push_back(VFRule::fromASCII(2002, 0, "blk"));
-
-        e.build(rules);
-
-        return e;
-    }();
-
-    return engine;
-}
-
 VFRule VFRule::fromASCII(int id, std::size_t offset, const std::string &ruleString)
 {
     VFRule rule{};
@@ -93,6 +71,11 @@ void VectorFilteringEngine::padAndPack(Group &group, const std::vector<VFRule> &
     group.lanesPadded = padded;
 
     group.anbchorByte0.assign(padded, 0);
+    group.firstByteBitmap = {0, 0, 0, 0};
+    for (std::size_t i = 0; i < size; ++i)
+    {
+        bitmapSet(group.firstByteBitmap, rulesInGroup[i].bytes[0]);
+    }
     group.anbchorByte1.assign(padded, 0);
     group.anbchorByte2.assign(padded, 0);
     group.anbchorByte3.assign(padded, 0);
@@ -108,7 +91,58 @@ void VectorFilteringEngine::padAndPack(Group &group, const std::vector<VFRule> &
         group.ruleIDs[i] = rule.ruleId;
     }
 }
+bool VectorFilteringEngine::anyHit(std::span<const std::uint8_t> payload) const
+{
+    constexpr std::size_t width = simd_u8::size();
 
+    for (const auto &group : m_groups)
+    {
+        if (payload.size() < group.offset + group.length)
+            continue;
+
+        const std::uint8_t b0 = payload[group.offset + 0];
+        const std::uint8_t b1 = (group.length >= 2) ? payload[group.offset + 1] : 0;
+        const std::uint8_t b2 = (group.length >= 3) ? payload[group.offset + 2] : 0;
+        const std::uint8_t b3 = (group.length >= 4) ? payload[group.offset + 3] : 0;
+
+        const simd_u8 vp0(b0), vp1(b1), vp2(b2), vp3(b3);
+        if (!bitmapHas(group.firstByteBitmap, b0))
+            continue;
+        for (std::size_t base = 0; base < group.lanesPadded; base += width)
+        {
+            const simd_u8 va0(&group.anbchorByte0[base], simd_ns::element_aligned);
+            mask_t m = (va0 == vp0);
+
+            if (group.length >= 2)
+            {
+                const simd_u8 va1(&group.anbchorByte1[base], simd_ns::element_aligned);
+                m &= (va1 == vp1);
+            }
+            if (group.length >= 3)
+            {
+                const simd_u8 va2(&group.anbchorByte2[base], simd_ns::element_aligned);
+                m &= (va2 == vp2);
+            }
+            if (group.length >= 4)
+            {
+                const simd_u8 va3(&group.anbchorByte3[base], simd_ns::element_aligned);
+                m &= (va3 == vp3); // <-- correct
+            }
+
+            if (any_of(m))
+                return true;
+        }
+    }
+    return false;
+}
+static inline void bitmapSet(std::array<uint64_t, 4> &bm, uint8_t b)
+{
+    bm[b >> 6] |= (1ull << (b & 63));
+}
+static inline bool bitmapHas(const std::array<uint64_t, 4> &bm, uint8_t b)
+{
+    return (bm[b >> 6] >> (b & 63)) & 1ull;
+}
 std::vector<int> VectorFilteringEngine::scanPayload(std::span<const std::uint8_t> payload) const
 {
     std::vector<int> hits;
@@ -130,7 +164,8 @@ std::vector<int> VectorFilteringEngine::scanPayload(std::span<const std::uint8_t
         const simd_u8 vectorPayload1(payloadByte1);
         const simd_u8 vectorPayload2(payloadByte2);
         const simd_u8 vectorPayload3(payloadByte3);
-
+        if (!bitmapHas(group.firstByteBitmap, payloadByte0))
+            continue;
         for (std::size_t base = 0; base < group.lanesPadded; base += width)
         {
             const simd_u8 vectorAnchor0(&group.anbchorByte0[base], simd_ns::element_aligned);
@@ -149,7 +184,7 @@ std::vector<int> VectorFilteringEngine::scanPayload(std::span<const std::uint8_t
             if (group.length >= 4)
             {
                 const simd_u8 vectorAnchor3(&group.anbchorByte3[base], simd_ns::element_aligned);
-                mask &= (vectorAnchor3 == vectorPayload2);
+                mask &= (vectorAnchor3 == vectorPayload3);
             }
 
             if (!any_of(mask))
