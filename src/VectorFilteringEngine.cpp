@@ -3,7 +3,14 @@
 #include <algorithm>
 #include <stdexcept>
 #include <print>
-
+static inline void bitmapSet(std::array<uint64_t, 4> &bm, uint8_t b)
+{
+    bm[b >> 6] |= (1ull << (b & 63));
+}
+static inline bool bitmapHas(const std::array<uint64_t, 4> &bm, uint8_t b)
+{
+    return (bm[b >> 6] >> (b & 63)) & 1ull;
+}
 VFRule VFRule::fromASCII(int id, std::size_t offset, const std::string &ruleString)
 {
     VFRule rule{};
@@ -135,14 +142,7 @@ bool VectorFilteringEngine::anyHit(std::span<const std::uint8_t> payload) const
     }
     return false;
 }
-static inline void bitmapSet(std::array<uint64_t, 4> &bm, uint8_t b)
-{
-    bm[b >> 6] |= (1ull << (b & 63));
-}
-static inline bool bitmapHas(const std::array<uint64_t, 4> &bm, uint8_t b)
-{
-    return (bm[b >> 6] >> (b & 63)) & 1ull;
-}
+
 std::vector<int> VectorFilteringEngine::scanPayload(std::span<const std::uint8_t> payload) const
 {
     std::vector<int> hits;
