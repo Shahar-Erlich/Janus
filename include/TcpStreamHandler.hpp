@@ -9,7 +9,8 @@
 
 #include "AhoCorasick.hpp"
 #include "VectorFilteringEngine.hpp"
-
+#include "RegexEngine.hpp"
+#include "IcdLoader.hpp"
 struct ConnectionState
 {
     std::vector<uint8_t> clientBuffer;
@@ -29,13 +30,13 @@ struct TcpPacketScanResult
 class TcpStreamHandler
 {
 public:
-    TcpStreamHandler(AhoCorasick &ac, VectorFilteringEngine &ve);
+    TcpStreamHandler(AhoCorasick &ac, VectorFilteringEngine &ve, RegexEngine &re);
     TcpStreamHandler(const TcpStreamHandler &) = delete;
     TcpStreamHandler &operator=(const TcpStreamHandler &) = delete;
 
     // מחזיר תוצאה פר פאקטה (סינכרוני מבחינת PacketPolicy)
     TcpPacketScanResult processPacket(pcpp::Packet &packet);
-
+    void setRuleMeta(const std::unordered_map<int, IcdRuleMeta> *meta) { m_metaMap = meta; }
     void shutdown();
 
 private:
@@ -53,10 +54,9 @@ private:
     pcpp::TcpReassembly reassembly;
     std::unordered_map<uint32_t, ConnectionState> connections;
     std::mutex mutex;
-
+    const std::unordered_map<int, IcdRuleMeta> *m_metaMap = nullptr;
     AhoCorasick &ahoCorasick;
     VectorFilteringEngine &vectorEngine;
-
-    // pointer זמני לתוצאה של הפאקטה הנוכחית (רק בזמן processPacket)
+    RegexEngine &regexEngine;
     TcpPacketScanResult *currentScan = nullptr;
 };

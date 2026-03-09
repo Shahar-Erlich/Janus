@@ -6,10 +6,11 @@
 
 static std::atomic<int> g_sessionCounter = 1;
 
-TcpStreamHandler::TcpStreamHandler(AhoCorasick &ac, VectorFilteringEngine &ve)
+TcpStreamHandler::TcpStreamHandler(AhoCorasick &ac, VectorFilteringEngine &ve, RegexEngine &re)
     : reassembly(onDataReady, this, onConnectionStart, onConnectionEnd),
       ahoCorasick(ac),
-      vectorEngine(ve)
+      vectorEngine(ve),
+      regexEngine(re)
 {
 }
 
@@ -20,7 +21,6 @@ TcpPacketScanResult TcpStreamHandler::processPacket(pcpp::Packet &packet)
     if (!packet.isPacketOfType(pcpp::TCP))
         return res;
 
-    // set "currentScan" רק לפרק הזמן של הקריאה הזו
     currentScan = &res;
     reassembly.reassemblePacket(packet);
     currentScan = nullptr;
@@ -64,7 +64,6 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
     const std::size_t overlap =
         (buffer.size() >= (MAX_ANCHOR_LEN - 1)) ? (MAX_ANCHOR_LEN - 1) : buffer.size();
 
-    // Window עבור VF: overlap קטן + ה-data החדש
     std::vector<std::uint8_t> scanWindow;
     scanWindow.reserve(overlap + len);
     if (overlap > 0)
@@ -73,7 +72,6 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
     }
     scanWindow.insert(scanWindow.end(), data, data + len);
 
-    // Window עבור Aho: tail גדול יותר + ה-data החדש
     const std::size_t ahoTail = std::min(buffer.size(), AHO_TAIL);
     std::vector<std::uint8_t> ahoWindow;
     ahoWindow.reserve(ahoTail + len);
@@ -83,10 +81,8 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
     }
     ahoWindow.insert(ahoWindow.end(), data, data + len);
 
-    // אם כבר flagged flow אפשר לדלג/לוגג, אבל לא חובה
     if (!state.flowFlagged)
     {
-        // בדיקה עם shifts כדי לא לפספס anchors שחוצים גבול
         bool anyVf = false;
         std::vector<int> bestHits;
         const size_t maxShift = std::min<size_t>(64, scanWindow.size());
@@ -94,54 +90,108 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
         {
             std::span<const uint8_t> win(scanWindow.data() + i, scanWindow.size() - i);
             auto hits = self->vectorEngine.scanPayload(win);
-            if (!hits.empty())
+
+            std::vector<int> validHits;
+            for (int rid : hits)
+            {
+                if (self->m_metaMap)
+                {
+                    auto it = self->m_metaMap->find(rid);
+                    if (it != self->m_metaMap->end())
+                    {
+                        if (it->second.offset_mode == "EXACT" && i != 0)
+                            continue;
+                    }
+                }
+                validHits.push_back(rid);
+            }
+
+            if (!validHits.empty())
             {
                 anyVf = true;
-                bestHits = std::move(hits);
+                bestHits = std::move(validHits);
                 break;
             }
         }
 
-        // fallback על ה-data החדש בלבד
         if (!anyVf)
         {
             std::span<const uint8_t> payload(data, len);
             auto hits = self->vectorEngine.scanPayload(payload);
-            if (!hits.empty())
+
+            std::vector<int> validHits;
+            for (int rid : hits)
+            {
+                if (self->m_metaMap)
+                {
+                    auto it = self->m_metaMap->find(rid);
+                    if (it != self->m_metaMap->end())
+                    {
+                        if (it->second.offset_mode == "EXACT")
+                            continue;
+                    }
+                }
+                validHits.push_back(rid);
+            }
+
+            if (!validHits.empty())
             {
                 anyVf = true;
-                bestHits = std::move(hits);
+                bestHits = std::move(validHits);
             }
         }
-
         if (anyVf)
         {
-            // עדכון תוצאה של הפאקטה הנוכחית (אם אנחנו בתוך processPacket)
             if (self->currentScan)
             {
                 self->currentScan->vfHit = true;
                 self->currentScan->vfRuleIds = bestHits;
             }
 
-            // Aho confirm על חלון "tail + new"
-            std::string dataStr(reinterpret_cast<const char *>(ahoWindow.data()), ahoWindow.size());
-            auto result = self->ahoCorasick.search(dataStr);
-            if (result.has_value())
-            {
-                state.flowFlagged = true; // future: drop-fast
-                if (self->currentScan)
-                {
-                    self->currentScan->ahoHit = true;
-                    self->currentScan->ahoInfo = result.value();
-                }
+            std::string scanDataStr(reinterpret_cast<const char *>(scanWindow.data()), scanWindow.size());
+            bool confirmedByRegex = false;
 
-                std::println("=== AHO HIT SESSION {} ===", state.sessionId);
-                std::println("{}", result.value());
+            for (int rid : bestHits)
+            {
+                if (self->regexEngine.hasRule(rid))
+                {
+                    if (self->regexEngine.matchRule(rid, scanDataStr))
+                    {
+                        confirmedByRegex = true;
+                        if (self->currentScan)
+                        {
+                            self->currentScan->ahoInfo = "Regex Hit [Rule " + std::to_string(rid) + "] in TCP stream";
+                        }
+                        break;
+                    }
+                }
+                else
+                {
+                    confirmedByRegex = true;
+                    break;
+                }
+            }
+
+            if (confirmedByRegex)
+            {
+                std::string dataStr(reinterpret_cast<const char *>(ahoWindow.data()), ahoWindow.size());
+                auto result = self->ahoCorasick.search(dataStr);
+                if (result.has_value())
+                {
+                    state.flowFlagged = true;
+                    if (self->currentScan)
+                    {
+                        self->currentScan->ahoHit = true;
+                        self->currentScan->ahoInfo = result.value();
+                    }
+
+                    std::println("=== AHO HIT SESSION {} ===", state.sessionId);
+                    std::println("{}", result.value());
+                }
             }
         }
     }
 
-    // Update stream buffer (keep tail)
     buffer.insert(buffer.end(), data, data + len);
     if (buffer.size() > MAX_STREAM_KEEP)
     {

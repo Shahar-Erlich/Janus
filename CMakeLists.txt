@@ -64,6 +64,7 @@ target_include_directories(tcp_handler
 target_link_libraries(tcp_handler
     PUBLIC janus_logger
     PUBLIC Pcap++ Packet++ Common++ pcap
+    PUBLIC regex_engine
 )
 #blacklist
 add_library(blacklist_handler STATIC
@@ -79,7 +80,19 @@ target_link_libraries(blacklist_handler
     PUBLIC packet
 )
 
+add_library(regex_engine STATIC
+    src/RegexEngine.cpp
+)
 
+target_include_directories(regex_engine
+    PUBLIC ${JANUS_INCLUDE_DIR}
+)
+
+# קישור ל-re2
+target_link_libraries(regex_engine
+    PUBLIC re2
+    PUBLIC janus_logger
+)
 #policy
 add_library(policy_handler STATIC
     src/PacketPolicy.cpp
@@ -94,6 +107,9 @@ target_link_libraries(policy_handler
     PUBLIC packet
     PUBLIC blacklist_handler
     PUBLIC vector_filter
+    PUBLIC regex_engine
+    
+
 
 )
 #Aho Corasick
@@ -131,7 +147,8 @@ target_link_libraries(janus_core
     vector_filter
     aho_corasick
     icd_loader
-
+    regex_engine
+    re2
 )
 target_compile_options(janus_core PRIVATE -mavx2 -O3)
 
@@ -149,7 +166,7 @@ target_link_libraries(main
     PUBLIC janus_logger
     PUBLIC packet
     PUBLIC vector_filter
-
+    
 )
 
 #main 2
@@ -199,5 +216,7 @@ target_link_libraries(janus
     PUBLIC janus_core
     PUBLIC policy_handler
     PUBLIC tcp_handler
+    PUBLIC regex_engine
+    PUBLIC re2
 
 )

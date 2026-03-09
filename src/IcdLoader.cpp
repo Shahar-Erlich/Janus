@@ -8,8 +8,6 @@
 #include "third_party/json.hpp"
 using json = nlohmann::json;
 
-/* ---------- helpers ---------- */
-
 static std::vector<std::uint8_t> hexToBytes(const std::string &hex)
 {
     if (hex.size() % 2 != 0)
@@ -38,18 +36,15 @@ static std::vector<std::uint8_t> hexToBytes(const std::string &hex)
     return out;
 }
 
-// FNV-1a 32-bit (stable auto-id)
-static std::uint32_t fnv1a32(const std::string &s)
+static std::uint32_t stringHash(const std::string &s)
 {
-    std::uint32_t h = 2166136261u;
+    std::uint32_t h = 0;
+
     for (unsigned char c : s)
-    {
-        h ^= c;
-        h *= 16777619u;
-    }
+        h = h * 31 + c;
+
     return h;
 }
-
 static IcdRuleMeta::Action parseAction(std::string a)
 {
     std::transform(a.begin(), a.end(), a.begin(), ::toupper);
@@ -91,12 +86,13 @@ IcdLoaded IcdLoader::loadFromFile(const std::string &path)
     {
         const std::string id = r.at("id").get<std::string>();
         const std::string desc = r.value("desc", "");
+        const std::string regex_pattern = r.value("regex", "");
         const std::string protoStr = r.value("proto", "ANY");
         const std::string actionStr = r.value("action", "FLAG");
 
         const std::string offsetMode = r.value("offset_mode", "PAYLOAD");
-        if (offsetMode != "PAYLOAD")
-            throw std::runtime_error("offset_mode currently only supports PAYLOAD (rule: " + id + ")");
+        if (offsetMode != "PAYLOAD" && offsetMode != "EXACT")
+            throw std::runtime_error("offset_mode currently only supports PAYLOAD or EXACT (rule: " + id + ")");
 
         const int offset = r.at("offset").get<int>();
         const int length = r.at("length").get<int>();
@@ -108,10 +104,9 @@ IcdLoaded IcdLoader::loadFromFile(const std::string &path)
         if ((int)bytes.size() != length)
             throw std::runtime_error("value_hex length mismatch (rule: " + id + ")");
 
-        // Stable auto-id derived from rule content
         const std::string key = id + "|" + protoStr + "|" + std::to_string(offset) + "|" +
                                 std::to_string(length) + "|" + hex;
-        const int ruleId = (int)(fnv1a32(key) & 0x7fffffff); // positive int
+        const int ruleId = (int)(stringHash(key) & 0x7fffffff);
 
         VFRule rule{};
         rule.ruleId = ruleId;
@@ -127,9 +122,11 @@ IcdLoaded IcdLoader::loadFromFile(const std::string &path)
         IcdRuleMeta meta{};
         meta.id = id;
         meta.desc = desc;
+        meta.regex_pattern = regex_pattern;
         meta.action = parseAction(actionStr);
         meta.proto = parseProto(protoStr);
-
+        meta.offset_mode = offsetMode;
+        meta.exact_offset = offset;
         out.metaByRuleId[ruleId] = std::move(meta);
     }
 

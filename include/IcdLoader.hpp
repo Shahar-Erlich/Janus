@@ -22,8 +22,11 @@ struct IcdRuleMeta
 
     std::string id;
     std::string desc;
+    std::string regex_pattern;
     Action action = Action::FLAG;
     Proto proto = Proto::ANY;
+    std::string offset_mode;
+    int exact_offset;
 };
 
 struct IcdLoaded

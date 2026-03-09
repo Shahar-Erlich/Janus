@@ -10,10 +10,10 @@
 
 struct VFRule
 {
-    int ruleId;                        // unique ID for logging/verdict
-    std::size_t offset;                // offset into the payload buffer
-    std::uint8_t length;               // anchor length
-    std::array<std::uint8_t, 4> bytes; // anchor bytes
+    int ruleId;
+    std::size_t offset;
+    std::uint8_t length;
+    std::array<std::uint8_t, 4> bytes;
     std::string description;
 
     static VFRule fromASCII(int id, std::size_t off, const std::string &s);
