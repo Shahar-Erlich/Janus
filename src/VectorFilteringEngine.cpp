@@ -60,7 +60,6 @@ void VectorFilteringEngine::build(const std::vector<VFRule> &rules)
         m_groups.push_back(std::move(group));
     }
 
-    // Optional: stable order by offset then length (debug-friendly)
     std::sort(m_groups.begin(), m_groups.end(), [](const Group &groupA, const Group &groupB)
               {
         if (groupA.offset != groupB.offset) return groupA.offset < groupB.offset;
@@ -133,7 +132,7 @@ bool VectorFilteringEngine::anyHit(std::span<const std::uint8_t> payload) const
             if (group.length >= 4)
             {
                 const simd_u8 va3(&group.anbchorByte3[base], simd_ns::element_aligned);
-                m &= (va3 == vp3); // <-- correct
+                m &= (va3 == vp3);
             }
 
             if (any_of(m))

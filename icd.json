@@ -11,8 +11,9 @@
             "offset": 0,
             "length": 4,
             "value_hex": "2F2E656E",
-            "action": "FLAG",
-            "desc": "/.env"
+            "regex": "\\/\\.env($|\\?|\\s)",
+            "action": "BLOCK",
+            "desc": "Sensitive /.env file access"
         },
         {
             "id": "GIT",
@@ -21,8 +22,9 @@
             "offset": 0,
             "length": 4,
             "value_hex": "2F2E6769",
+            "regex": "\\/\\.git\\/(config|HEAD|index|logs|refs)",
             "action": "FLAG",
-            "desc": "/.git"
+            "desc": "/.git metadata access"
         },
         {
             "id": "ETC",
@@ -31,8 +33,9 @@
             "offset": 0,
             "length": 4,
             "value_hex": "2F657463",
+            "regex": "\\/etc\\/(passwd|shadow|hosts|group|issue|crontab)",
             "action": "FLAG",
-            "desc": "/etc"
+            "desc": "/etc system files access"
         },
         {
             "id": "PROC",
@@ -41,158 +44,152 @@
             "offset": 0,
             "length": 4,
             "value_hex": "2F70726F",
+            "regex": "\\/proc\\/(self|net|sys|cpuinfo|version|meminfo)",
             "action": "FLAG",
-            "desc": "/proc"
+            "desc": "/proc kernel info access"
         },
         {
-            "id": "ROOT",
+            "id": "LFI_DOT_SLASH",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F726F6F",
-            "action": "FLAG",
-            "desc": "/root"
+            "value_hex": "2E2E2F2E",
+            "regex": "\\.\\.\\/\\.\\.\\/",
+            "action": "BLOCK",
+            "desc": "Path Traversal (../../)"
         },
         {
-            "id": "VAR",
+            "id": "WIN_INI",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F766172",
+            "value_hex": "77696E2E",
+            "regex": "(?i)win\\.ini",
             "action": "FLAG",
-            "desc": "/var"
+            "desc": "Windows win.ini LFI attempt"
         },
         {
-            "id": "WP",
+            "id": "EVAL_PHP",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F77702D",
+            "value_hex": "6576616C",
+            "regex": "(?i)eval\\s*\\(",
             "action": "FLAG",
-            "desc": "/wp-"
+            "desc": "PHP Code Execution (eval)"
         },
         {
-            "id": "ADMIN",
+            "id": "SYSTEM_PHP",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F61646D",
-            "action": "FLAG",
-            "desc": "/admin"
+            "value_hex": "73797374",
+            "regex": "(?i)system\\s*\\(\\s*\\$_(GET|POST|REQUEST|COOKIE)",
+            "action": "BLOCK",
+            "desc": "PHP Command Execution (system($_GET))"
         },
         {
-            "id": "PHPMYADMIN",
+            "id": "ASSERT_PHP",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F706870",
-            "action": "FLAG",
-            "desc": "/phpmyadmin"
+            "value_hex": "61737365",
+            "regex": "(?i)assert\\s*\\(\\s*\\$_(GET|POST|REQUEST)",
+            "action": "BLOCK",
+            "desc": "PHP Code Execution (assert($_POST))"
         },
         {
-            "id": "SERVER_STATUS",
+            "id": "SHELL_EXEC",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F736572",
+            "value_hex": "7368656C",
+            "regex": "(?i)shell_exec\\s*\\(",
             "action": "FLAG",
-            "desc": "/server-status"
+            "desc": "PHP shell_exec()"
         },
         {
-            "id": "ACTUATOR",
+            "id": "PASSTHRU",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F616374",
+            "value_hex": "70617373",
+            "regex": "(?i)passthru\\s*\\(",
             "action": "FLAG",
-            "desc": "/actuator"
+            "desc": "PHP passthru()"
         },
         {
-            "id": "API",
+            "id": "POPEN",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F617069",
+            "value_hex": "706F7065",
+            "regex": "(?i)popen\\s*\\(",
             "action": "FLAG",
-            "desc": "/api"
+            "desc": "PHP popen()"
         },
         {
-            "id": "V2",
+            "id": "FILE_GET_CONTENTS_RFI",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F76322F",
-            "action": "FLAG",
-            "desc": "/v2/"
+            "value_hex": "66696C65",
+            "regex": "(?i)file_get_contents\\s*\\(\\s*('|\")?(http|ftp|php:\\/\\/)",
+            "action": "BLOCK",
+            "desc": "Remote File Inclusion via file_get_contents"
         },
         {
-            "id": "CMD",
+            "id": "PREG_REPLACE_E",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F636D64",
-            "action": "FLAG",
-            "desc": "/cmd"
+            "value_hex": "70726567",
+            "regex": "(?i)preg_replace\\s*\\(\\s*('|\")?\\/.*\\/e",
+            "action": "BLOCK",
+            "desc": "PHP Code Execution via preg_replace /e modifier"
         },
         {
-            "id": "GATE_PHP",
+            "id": "NC_EXEC",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F676174",
-            "action": "FLAG",
-            "desc": "/gate.php"
+            "value_hex": "6E63202D",
+            "regex": "(?i)nc\\s+-e\\s+",
+            "action": "BLOCK",
+            "desc": "Netcat Reverse Shell (nc -e)"
         },
         {
-            "id": "PANEL_LOGIN",
+            "id": "NETCAT_EXEC",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F70616E",
-            "action": "FLAG",
-            "desc": "/panel/login"
+            "value_hex": "6E657463",
+            "regex": "(?i)netcat\\s+-e\\s+",
+            "action": "BLOCK",
+            "desc": "Netcat Reverse Shell (netcat -e)"
         },
         {
-            "id": "UPLOAD",
+            "id": "B374K_SHELL",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "2F75706C",
-            "action": "FLAG",
-            "desc": "/upload"
-        },
-        {
-            "id": "UPDATE_PHP",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "2F757064",
-            "action": "FLAG",
-            "desc": "/update.php"
-        },
-        {
-            "id": "INSTALL_PHP",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "2F696E73",
-            "action": "FLAG",
-            "desc": "/install.php"
+            "value_hex": "62333734",
+            "regex": "(?i)b374k",
+            "action": "BLOCK",
+            "desc": "b374k Web Shell"
         },
         {
             "id": "C99_PHP",
@@ -201,338 +198,669 @@
             "offset": 0,
             "length": 4,
             "value_hex": "6339392E",
-            "action": "FLAG",
-            "desc": "c99.php"
+            "regex": "(?i)c99\\.php",
+            "action": "BLOCK",
+            "desc": "C99 Web Shell"
         },
         {
-            "id": "R57_PHP",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "7235372E",
-            "action": "FLAG",
-            "desc": "r57.php"
-        },
-        {
-            "id": "WSO",
+            "id": "WSO_SHELL",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 3,
             "value_hex": "77736F",
-            "action": "FLAG",
-            "desc": "WSO (3 bytes)"
+            "regex": "(?i)wso\\.php",
+            "action": "BLOCK",
+            "desc": "WSO Web Shell"
         },
         {
-            "id": "SHELL",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "7368656C",
-            "action": "FLAG",
-            "desc": "shell.php (prefix)"
-        },
-        {
-            "id": "DOLLAR_CAT",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "24286361",
-            "action": "FLAG",
-            "desc": "$(cat"
-        },
-        {
-            "id": "DOLLAR_WHOAMI",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "24287768",
-            "action": "FLAG",
-            "desc": "$(whoami"
-        },
-        {
-            "id": "PIPE_SH",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "7C207368",
-            "action": "FLAG",
-            "desc": "| sh"
-        },
-        {
-            "id": "PIPE_BASH",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "7C206261",
-            "action": "FLAG",
-            "desc": "| bash"
-        },
-        {
-            "id": "CURL",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "6375726C",
-            "action": "FLAG",
-            "desc": "curl"
-        },
-        {
-            "id": "WGET",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "77676574",
-            "action": "FLAG",
-            "desc": "wget"
-        },
-        {
-            "id": "BASH",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "62617368",
-            "action": "FLAG",
-            "desc": "bash"
-        },
-        {
-            "id": "PHP_SPACE",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "70687020",
-            "action": "FLAG",
-            "desc": "php "
-        },
-        {
-            "id": "CMD_SPACE",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "636D6420",
-            "action": "FLAG",
-            "desc": "cmd /c"
-        },
-        {
-            "id": "CMD_DOT",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "636D642E",
-            "action": "FLAG",
-            "desc": "cmd.exe"
-        },
-        {
-            "id": "POWE",
-            "proto": "ANY",
-            "offset_mode": "PAYLOAD",
-            "offset": 0,
-            "length": 4,
-            "value_hex": "706F7765",
-            "action": "FLAG",
-            "desc": "powershell..."
-        },
-        {
-            "id": "UNION",
+            "id": "SQLI_UNION_LOWER",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
             "value_hex": "756E696F",
-            "action": "FLAG",
-            "desc": "union"
+            "regex": "(?i)union\\s+(all\\s+)?select",
+            "action": "BLOCK",
+            "desc": "SQLi: UNION SELECT"
         },
         {
-            "id": "SELECT",
+            "id": "SQLI_UNION_UPPER",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "554E494F",
+            "regex": "(?i)union\\s+(all\\s+)?select",
+            "action": "BLOCK",
+            "desc": "SQLi: UNION SELECT (Caps Anchor)"
+        },
+        {
+            "id": "SQLI_SELECT_LOWER",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
             "value_hex": "73656C65",
+            "regex": "(?i)select\\s+.*\\s+from",
             "action": "FLAG",
-            "desc": "select"
+            "desc": "SQLi: SELECT ... FROM"
         },
         {
-            "id": "SLEEP",
+            "id": "SQLI_SELECT_UPPER",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "736C6565",
+            "value_hex": "53454C45",
+            "regex": "(?i)select\\s+.*\\s+from",
             "action": "FLAG",
-            "desc": "sleep("
+            "desc": "SQLi: SELECT ... FROM (Caps Anchor)"
         },
         {
-            "id": "BENCHMARK",
+            "id": "SQLI_DROP_LOWER",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "64726F70",
+            "regex": "(?i)drop\\s+(table|database)\\s+",
+            "action": "BLOCK",
+            "desc": "SQLi: DROP TABLE/DATABASE"
+        },
+        {
+            "id": "SQLI_DROP_UPPER",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "44524F50",
+            "regex": "(?i)drop\\s+(table|database)\\s+",
+            "action": "BLOCK",
+            "desc": "SQLi: DROP TABLE/DATABASE (Caps Anchor)"
+        },
+        {
+            "id": "SQLI_INSERT",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "696E7365",
+            "regex": "(?i)insert\\s+into\\s+",
+            "action": "FLAG",
+            "desc": "SQLi: INSERT INTO"
+        },
+        {
+            "id": "SQLI_WAITFOR",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "77616974",
+            "regex": "(?i)waitfor\\s+delay\\s+",
+            "action": "BLOCK",
+            "desc": "SQLi: Time-based (WAITFOR DELAY)"
+        },
+        {
+            "id": "SQLI_CAST",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "63617374",
+            "regex": "(?i)cast\\s*\\(\\s*.*\\s+as\\s+",
+            "action": "FLAG",
+            "desc": "SQLi: CAST() function"
+        },
+        {
+            "id": "SQLI_CONVERT",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "636F6E76",
+            "regex": "(?i)convert\\s*\\(\\s*.*\\s*,",
+            "action": "FLAG",
+            "desc": "SQLi: CONVERT() function"
+        },
+        {
+            "id": "SQLI_NVARCHAR",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "6E766172",
+            "regex": "(?i)nvarchar\\s*\\(",
+            "action": "FLAG",
+            "desc": "SQLi: nvarchar type injection"
+        },
+        {
+            "id": "SQLI_DECLARE",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "6465636C",
+            "regex": "(?i)declare\\s+@",
+            "action": "FLAG",
+            "desc": "SQLi: DECLARE @variable"
+        },
+        {
+            "id": "SQLI_EXEC",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "65786563",
+            "regex": "(?i)exec\\s*\\(\\s*@",
+            "action": "FLAG",
+            "desc": "SQLi: EXEC(@variable)"
+        },
+        {
+            "id": "SQLI_INFO_SCHEMA",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "696E666F",
+            "regex": "(?i)information_schema",
+            "action": "BLOCK",
+            "desc": "SQLi: information_schema enumeration"
+        },
+        {
+            "id": "SQLI_BENCHMARK",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
             "value_hex": "62656E63",
-            "action": "FLAG",
-            "desc": "benchmark("
+            "regex": "(?i)benchmark\\(\\s*\\d+\\s*,",
+            "action": "BLOCK",
+            "desc": "SQLi: Time-based benchmark()"
         },
         {
-            "id": "XP_CMDSHELL",
+            "id": "SQLI_SLEEP",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "78705F63",
-            "action": "FLAG",
-            "desc": "xp_cmdshell"
+            "value_hex": "736C6565",
+            "regex": "(?i)sleep\\(\\s*\\d+\\s*\\)",
+            "action": "BLOCK",
+            "desc": "SQLi: Time-based sleep()"
         },
         {
-            "id": "SCRIPT_OPEN",
+            "id": "LOG4J_JNDI",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "3C736372",
-            "action": "FLAG",
-            "desc": "<scr"
+            "value_hex": "6A6E6469",
+            "regex": "(?i)\\$\\{jndi:(ldap|rmi|dns|iiop|corba|nds|http):\\/\\/",
+            "action": "BLOCK",
+            "desc": "Log4Shell JNDI Injection"
         },
         {
-            "id": "SCRIPT_CLOSE",
+            "id": "JAVA_DESERIALIZE",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "3C2F7363",
+            "value_hex": "724F3041",
+            "regex": "rO0AB[\\w\\d+\\/]+",
             "action": "FLAG",
-            "desc": "</sc"
+            "desc": "Java Deserialization (Base64 rO0AB)"
         },
         {
-            "id": "SVG_OPEN",
+            "id": "XSS_IMG_ONERROR",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "3C696D67",
+            "regex": "(?i)<img[\\s>].*?onerror\\s*=",
+            "action": "BLOCK",
+            "desc": "XSS: <img onerror=>"
+        },
+        {
+            "id": "XSS_BODY_ONLOAD",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "3C626F64",
+            "regex": "(?i)<body[\\s>].*?onload\\s*=",
+            "action": "BLOCK",
+            "desc": "XSS: <body onload=>"
+        },
+        {
+            "id": "XSS_SVG_ONLOAD",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
             "value_hex": "3C737667",
-            "action": "FLAG",
-            "desc": "<svg"
+            "regex": "(?i)<svg[\\s>].*?onload\\s*=",
+            "action": "BLOCK",
+            "desc": "XSS: <svg onload=>"
         },
         {
-            "id": "JAVA",
+            "id": "XSS_SCRIPT_TAG",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "6A617661",
+            "value_hex": "3C736372",
+            "regex": "(?i)<script(\\s|>)[^>]*>",
             "action": "FLAG",
-            "desc": "javascript:"
+            "desc": "XSS: <script> tag"
         },
         {
-            "id": "VBSC",
+            "id": "XSS_PROMPT",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "76627363",
+            "value_hex": "70726F6D",
+            "regex": "(?i)prompt\\s*\\(",
             "action": "FLAG",
-            "desc": "vbscript:"
+            "desc": "XSS: prompt() execution"
         },
         {
-            "id": "BEGIN_PRIVATE_KEY",
+            "id": "XSS_DOCUMENT_COOKIE",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "646F6375",
+            "regex": "(?i)document\\.(cookie|location)",
+            "action": "FLAG",
+            "desc": "XSS: document.cookie/location access"
+        },
+        {
+            "id": "NOSQLI_WHERE",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "24776865",
+            "regex": "\\$where\\s*:",
+            "action": "BLOCK",
+            "desc": "MongoDB NoSQLi ($where)"
+        },
+        {
+            "id": "LEAK_AWS_KEY",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "414B4941",
+            "regex": "AKIA[0-9A-Z]{16}",
+            "action": "BLOCK",
+            "desc": "Data Leak: AWS Access Key (AKIA)"
+        },
+        {
+            "id": "LEAK_GITHUB_TOKEN",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "6768705F",
+            "regex": "ghp_[a-zA-Z0-9]{36}",
+            "action": "BLOCK",
+            "desc": "Data Leak: GitHub Personal Access Token"
+        },
+        {
+            "id": "LEAK_SLACK_TOKEN",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "786F7862",
+            "regex": "xoxb-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24}",
+            "action": "BLOCK",
+            "desc": "Data Leak: Slack Bot Token"
+        },
+        {
+            "id": "LEAK_JWT_TOKEN",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "65794A68",
+            "regex": "eyJ[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+",
+            "action": "FLAG",
+            "desc": "Data Leak: JWT Token found in payload"
+        },
+        {
+            "id": "LEAK_PRIVATE_KEY",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
             "value_hex": "62656769",
-            "action": "FLAG",
-            "desc": "begin private key..."
+            "regex": "BEGIN\\s+(RSA|OPENSSH|DSA|EC|PGP)?\\s*PRIVATE\\s+KEY",
+            "action": "BLOCK",
+            "desc": "Data Leak: Private Key Leakage"
         },
         {
-            "id": "PRIVATE_KEY",
+            "id": "SCANNER_SQLMAP",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "70726976",
-            "action": "FLAG",
-            "desc": "private key-----"
+            "value_hex": "73716C6D",
+            "regex": "(?i)User-Agent:\\s*sqlmap",
+            "action": "BLOCK",
+            "desc": "Scanner: Sqlmap User-Agent"
         },
         {
-            "id": "AWS_",
+            "id": "SCANNER_NMAP",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "6177735F",
-            "action": "FLAG",
-            "desc": "aws_"
+            "value_hex": "6E6D6170",
+            "regex": "(?i)User-Agent:\\s*nmap",
+            "action": "BLOCK",
+            "desc": "Scanner: Nmap User-Agent"
         },
         {
-            "id": "API_",
+            "id": "SCANNER_NIKTO",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "6170695F",
-            "action": "FLAG",
-            "desc": "api_"
+            "value_hex": "4E696B74",
+            "regex": "(?i)User-Agent:\\s*nikto",
+            "action": "BLOCK",
+            "desc": "Scanner: Nikto User-Agent"
         },
         {
-            "id": "SECR",
+            "id": "SCANNER_DIRBUSTER",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "73656372",
-            "action": "FLAG",
-            "desc": "secr"
+            "value_hex": "44697242",
+            "regex": "(?i)User-Agent:\\s*dirbuster",
+            "action": "BLOCK",
+            "desc": "Scanner: Dirbuster User-Agent"
         },
         {
-            "id": "ACCE",
+            "id": "SCANNER_WPSCAN",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "61636365",
-            "action": "FLAG",
-            "desc": "acce"
+            "value_hex": "57505363",
+            "regex": "(?i)User-Agent:\\s*wpscan",
+            "action": "BLOCK",
+            "desc": "Scanner: WPScan User-Agent"
         },
         {
-            "id": "SSH",
+            "id": "SCANNER_MASSCAN",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "5353482D",
-            "action": "FLAG",
-            "desc": "SSH-"
+            "value_hex": "6D617373",
+            "regex": "(?i)User-Agent:\\s*masscan",
+            "action": "BLOCK",
+            "desc": "Scanner: Masscan User-Agent"
         },
         {
-            "id": "MZ",
+            "id": "API_VIRTUALALLOC",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "56697274",
+            "regex": "(?i)virtualalloc",
+            "action": "FLAG",
+            "desc": "Malware API: VirtualAlloc (Shellcode Dropper)"
+        },
+        {
+            "id": "API_CREATEREMOTETHREAD",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "43726561",
+            "regex": "(?i)createremotethread",
+            "action": "FLAG",
+            "desc": "Malware API: CreateRemoteThread (Process Injection)"
+        },
+        {
+            "id": "API_LOADLIBRARY",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "4C6F6164",
+            "regex": "(?i)loadlibrary",
+            "action": "FLAG",
+            "desc": "Malware API: LoadLibrary"
+        },
+        {
+            "id": "API_GETPROCADDRESS",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "47657450",
+            "regex": "(?i)getprocaddress",
+            "action": "FLAG",
+            "desc": "Malware API: GetProcAddress"
+        },
+        {
+            "id": "API_WINEXEC",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "57696E45",
+            "regex": "(?i)winexec",
+            "action": "FLAG",
+            "desc": "Malware API: WinExec"
+        },
+        {
+            "id": "HTTP_CHUNKED",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "6368756E",
+            "regex": "(?i)Transfer-Encoding:\\s*chunked",
+            "action": "FLAG",
+            "desc": "HTTP Request Smuggling (Chunked)"
+        },
+        {
+            "id": "HTTP_EXPECT",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "45787065",
+            "regex": "(?i)Expect:\\s*100-continue",
+            "action": "FLAG",
+            "desc": "HTTP Expect 100-continue (Often used in exploits)"
+        },
+        {
+            "id": "MAGIC_MZ",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
             "offset": 0,
             "length": 2,
             "value_hex": "4D5A",
-            "action": "FLAG",
-            "desc": "MZ"
+            "regex": "",
+            "action": "BLOCK",
+            "desc": "MZ Executable Magic Number (Windows PE)"
         },
         {
-            "id": "PK_ZIP",
+            "id": "MAGIC_ELF",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "7F454C46",
+            "regex": "",
+            "action": "BLOCK",
+            "desc": "ELF Executable Magic Number (Linux)"
+        },
+        {
+            "id": "MAGIC_MACHO",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "CEFAEDFE",
+            "regex": "",
+            "action": "FLAG",
+            "desc": "Mach-O Executable Magic Number (Mac)"
+        },
+        {
+            "id": "MAGIC_ZIP",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "504B0304",
+            "regex": "",
+            "action": "BLOCK",
+            "desc": "PK_ZIP Archive Magic Number"
+        },
+        {
+            "id": "MAGIC_RAR",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "52617221",
+            "regex": "",
+            "action": "FLAG",
+            "desc": "RAR Archive Magic Number"
+        },
+        {
+            "id": "MAGIC_GZIP",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
+            "offset": 0,
+            "length": 2,
+            "value_hex": "1F8B",
+            "regex": "",
+            "action": "FLAG",
+            "desc": "GZIP Archive Magic Number"
+        },
+        {
+            "id": "MAGIC_PDF",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "25504446",
+            "regex": "",
+            "action": "FLAG",
+            "desc": "PDF Document Magic Number"
+        },
+        {
+            "id": "MAGIC_JAVA_CLASS",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "CAFEBABE",
+            "regex": "",
+            "action": "FLAG",
+            "desc": "Java Compiled Class Magic Number"
+        },
+        {
+            "id": "MAGIC_RTF",
+            "proto": "ANY",
+            "offset_mode": "EXACT",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "7B5C7274",
+            "regex": "",
+            "action": "FLAG",
+            "desc": "RTF Document Magic Number (Often used for exploits)"
+        },
+        {
+            "id": "SQLI_UPDATE",
             "proto": "ANY",
             "offset_mode": "PAYLOAD",
             "offset": 0,
             "length": 4,
-            "value_hex": "504B0304",
+            "value_hex": "75706461",
+            "regex": "(?i)update\\s+[a-z0-9_]+\\s+set\\s+",
             "action": "FLAG",
-            "desc": "zip"
+            "desc": "SQLi: UPDATE query"
+        },
+        {
+            "id": "SQLI_DELETE",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "64656C65",
+            "regex": "(?i)delete\\s+from\\s+",
+            "action": "BLOCK",
+            "desc": "SQLi: DELETE query"
+        },
+        {
+            "id": "CMD_BASH",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "62617368",
+            "regex": "(?i)bash\\s+-[ic]+",
+            "action": "BLOCK",
+            "desc": "Command Execution: bash shell"
+        },
+        {
+            "id": "CMD_CAT",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "63617420",
+            "regex": "(?i)cat\\s+\\/etc\\/",
+            "action": "BLOCK",
+            "desc": "Command Execution: cat sensitive file"
+        },
+        {
+            "id": "CMD_LS",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "6C73202D",
+            "regex": "(?i)ls\\s+-[lahtr]+",
+            "action": "FLAG",
+            "desc": "Command Execution: ls with flags"
+        },
+        {
+            "id": "CMD_SH",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "7C207368",
+            "regex": "\\|\\s*sh(\\s|$)",
+            "action": "BLOCK",
+            "desc": "Command Execution: Piping to sh"
+        },
+        {
+            "id": "NOP_SLED",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "90909090",
+            "regex": "\\x90{4,}",
+            "action": "BLOCK",
+            "desc": "Buffer Overflow NOP Sled (\\x90)"
         }
     ]
 }

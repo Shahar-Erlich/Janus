@@ -8,6 +8,7 @@ RUN apk add --no-cache \
     libpcap-dev \
     libmnl-dev \
     libnetfilter_queue-dev \
+    re2-dev \
     iproute2 \
     iptables \
     netcat-openbsd \

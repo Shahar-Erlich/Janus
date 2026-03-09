@@ -35,7 +35,6 @@ void Janus::init()
     std::string line;
     while (std::getline(f, line))
     {
-        // Trim or validate line if necessary
         if (!line.empty() && line.back() == '\r')
             line.pop_back();
 

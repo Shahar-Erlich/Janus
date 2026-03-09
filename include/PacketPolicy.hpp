@@ -10,6 +10,7 @@
 #include "VectorFilteringEngine.hpp"
 #include "TcpStreamHandler.hpp"
 #include "IcdLoader.hpp"
+#include "RegexEngine.hpp"
 
 enum class FinalVerdict
 {
@@ -21,10 +22,10 @@ struct Decision
 {
     FinalVerdict verdict = FinalVerdict::ALLOW;
 
-    bool inspected = false;  // האם הופעל deep inspection
-    bool flagged = false;    // חשוד (גם אם allowed)
-    std::vector<int> vfHits; // ruleIds
-    std::string ahoInfo;     // מה Aho החזיר (אם יש)
+    bool inspected = false;
+    bool flagged = false;
+    std::vector<int> vfHits;
+    std::string ahoInfo;
 };
 
 class PacketPolicy
@@ -34,19 +35,16 @@ public:
 
     void readPolicyLists();
 
-    // זה הפונקציה שה-Core יקרא
     Decision evaluate(const pcpp::Packet &packet);
 
 private:
-    // UDP scanning (shift + hits)
     std::vector<int> scanUdpVf(std::span<const uint8_t> payload) const;
 
-    // מחליט action חמור ביותר בין ה-hits (BLOCK > FLAG > ALLOW), עם בדיקת proto
     IcdRuleMeta::Action worstActionForHits(const std::vector<int> &hits, IcdRuleMeta::Proto proto) const;
 
 private:
     AhoCorasick &ahoCorasick;
-
+    RegexEngine regexEngine;
     VectorFilteringEngine vectorEngine;
     std::unordered_map<int, IcdRuleMeta> metaByRuleId;
     int maxScanShiftBytes = 64;

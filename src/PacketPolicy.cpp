@@ -8,13 +8,21 @@
 PacketPolicy::PacketPolicy(AhoCorasick &ac)
     : ahoCorasick(ac),
       vectorEngine(),
-      tcpHandler(ac, vectorEngine)
+      regexEngine(),
+      tcpHandler(ac, vectorEngine, regexEngine)
 {
     auto loaded = IcdLoader::loadFromFile("/app/icd.json");
     vectorEngine.build(loaded.rules);
     metaByRuleId = std::move(loaded.metaByRuleId);
+    tcpHandler.setRuleMeta(&metaByRuleId);
     maxScanShiftBytes = loaded.maxScanShiftBytes;
-
+    for (const auto &[rid, meta] : metaByRuleId)
+    {
+        if (!meta.regex_pattern.empty())
+        {
+            regexEngine.addRule(rid, meta.regex_pattern, meta.desc);
+        }
+    }
     std::println("PacketPolicy ready. ICD loaded rules={}", loaded.rules.size());
     std::println("PacketPolicy: maxScanShiftBytes={}", maxScanShiftBytes);
 }
@@ -67,7 +75,6 @@ IcdRuleMeta::Action PacketPolicy::worstActionForHits(const std::vector<int> &hit
 
     return worst;
 }
-
 std::vector<int> PacketPolicy::scanUdpVf(std::span<const uint8_t> payload) const
 {
     std::vector<int> out;
@@ -80,9 +87,22 @@ std::vector<int> PacketPolicy::scanUdpVf(std::span<const uint8_t> payload) const
     {
         std::span<const uint8_t> win(payload.data() + shift, payload.size() - shift);
         auto hits = vectorEngine.scanPayload(win);
-        if (!hits.empty())
+
+        for (int rid : hits)
         {
-            out = std::move(hits);
+            auto it = metaByRuleId.find(rid);
+            if (it != metaByRuleId.end())
+            {
+                if (it->second.offset_mode == "EXACT" && shift != 0)
+                {
+                    continue;
+                }
+                out.push_back(rid);
+            }
+        }
+
+        if (!out.empty())
+        {
             return out;
         }
     }
@@ -94,7 +114,6 @@ Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
 {
     Decision d{};
 
-    // 1) Blacklists / allowlist
     if (BlacklistHandler::isIPBlacklisted(packet) ||
         BlacklistHandler::isPortBlacklisted(packet) ||
         !BlacklistHandler::isProtocolAllowed(packet))
@@ -103,12 +122,10 @@ Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
         return d;
     }
 
-    // 2) Protocol branch
     auto proto = PcapParser::getTransportProtocol(packet);
 
     if (proto == pcpp::TCP)
     {
-        // TCP: handler עושה VF gate + Aho confirm על window
         auto res = tcpHandler.processPacket(const_cast<pcpp::Packet &>(packet));
 
         d.vfHits = res.vfRuleIds;
@@ -116,7 +133,6 @@ Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
 
         const auto worst = worstActionForHits(d.vfHits, IcdRuleMeta::Proto::TCP);
 
-        // אם אין VF hit בכלל -> allow
         if (!res.vfHit)
         {
             d.verdict = FinalVerdict::ALLOW;
@@ -125,12 +141,8 @@ Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
 
         d.flagged = (worst != IcdRuleMeta::Action::ALLOW);
 
-        // Deep inspection כבר קרה (Aho), אז נסמן inspected
         d.inspected = true;
 
-        // Drop רק אם:
-        // - יש Aho hit (confirmed)
-        // - והחומרה דורשת BLOCK
         if (res.ahoHit && worst == IcdRuleMeta::Action::BLOCK)
         {
             d.verdict = FinalVerdict::DROP;
@@ -188,15 +200,39 @@ Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
         const auto worst = worstActionForHits(d.vfHits, IcdRuleMeta::Proto::UDP);
         d.flagged = (worst != IcdRuleMeta::Action::ALLOW);
 
-        // Deep inspection only when VF hit exists
         d.inspected = true;
         std::string data(reinterpret_cast<const char *>(pl.data()), pl.size());
-        auto ahoRes = ahoCorasick.search(data);
-        if (ahoRes.has_value())
-            d.ahoInfo = ahoRes.value();
+        bool confirmedHit = false;
 
-        // confirmed block only if Aho hit AND rule severity BLOCK
-        if (ahoRes.has_value() && worst == IcdRuleMeta::Action::BLOCK)
+        for (int rid : d.vfHits)
+        {
+            auto it = metaByRuleId.find(rid);
+            if (it != metaByRuleId.end())
+            {
+                if (!it->second.regex_pattern.empty())
+                {
+
+                    if (regexEngine.matchRule(rid, data))
+                    {
+                        confirmedHit = true;
+                        d.ahoInfo = "Regex Hit [Rule " + std::to_string(rid) + "]: " + it->second.desc;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!confirmedHit)
+        {
+            auto ahoRes = ahoCorasick.search(data);
+            if (ahoRes.has_value())
+            {
+                confirmedHit = true;
+                d.ahoInfo = ahoRes.value();
+            }
+        }
+
+        if (confirmedHit && worst == IcdRuleMeta::Action::BLOCK)
             d.verdict = FinalVerdict::DROP;
         else
             d.verdict = FinalVerdict::ALLOW;
@@ -230,7 +266,6 @@ Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
         return d;
     }
 
-    // other protocols: allow
     d.verdict = FinalVerdict::ALLOW;
     return d;
 }
