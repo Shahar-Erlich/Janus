@@ -15,32 +15,34 @@ and block it from reaching `🟢Trusted Networks`.
 
 ## Currently Implemented Parts
 ### Simulation
-Currently the project only simulates 2 networks with 3 total computers:  
+Currently the project only simulates 2 networks with 4 total computers:  
 - 1 `🟢Trusted Networks` computer
-- 2 `🔴Untrusted Networks` computers
+- 3 `🔴Untrusted Networks` computers
 
 **To start the simulation run:**  
-`cd Janus_Core`  
+`cd Janus`  
 `docker compose up -d` *(d stands for "detached", seperating the simulated machines' terminal from the host one)*  
 
-**To end the simulation (assuming already in the Janus_Core directory) run:**
+**To end the simulation (assuming already in the Janus directory) run:**
 `docker compose down`  
 
 ### Filtering
 Filters currently implemented (will be added to the list when implemented):  
 - IP Blacklisting: simple checking if the ip who sent the packet is allowed  
 
-- More to be added...
+- Vector Filtering: prefilter to search for smsall signatures using SIMD operations
+- Aho Corasick: trie based algorithm to find signatures in text in a single run
+- Regex: regular expression search in a string
 
 ## Stuff to Implement
 ### DPI
-- Aho-Corasick
-- Vector Filtering
+- ~~Aho-Corasick~~
+- ~~Vector Filtering~~
 ### SPI
 ~~- More Efficient Blacklisting~~
 ### General
 ~~- PCAP Reading and Proccesing~~  
-- Figure out TCP stream stuff  
+- ~~Figure out TCP stream stuff~~  
 - Optimize
 - Database
 - Frontend for Statistics
