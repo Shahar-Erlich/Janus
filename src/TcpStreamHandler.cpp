@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <print>
 #include <atomic>
+#include <chrono>
 
 static std::atomic<int> g_sessionCounter = 1;
 
@@ -32,7 +33,21 @@ void TcpStreamHandler::shutdown()
 {
     reassembly.closeAllConnections();
 }
-
+static janus::common::ProcessingStamp makeStamp(
+    janus::common::EngineStage stage,
+    uint64_t startedMs,
+    uint64_t finishedMs,
+    uint64_t durationUs,
+    std::string status)
+{
+    janus::common::ProcessingStamp s;
+    s.set_stage(stage);
+    s.set_started_unix_ms(startedMs);
+    s.set_finished_unix_ms(finishedMs);
+    s.set_duration_us(durationUs);
+    s.set_status(std::move(status));
+    return s;
+}
 void TcpStreamHandler::onConnectionStart(const pcpp::ConnectionData &connectionData, void *userCookie)
 {
     auto *self = static_cast<TcpStreamHandler *>(userCookie);
@@ -42,7 +57,13 @@ void TcpStreamHandler::onConnectionStart(const pcpp::ConnectionData &connectionD
     st.sessionId = g_sessionCounter++;
     self->connections[connectionData.flowKey] = std::move(st);
 }
-
+static uint64_t nowUnixMs()
+{
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(
+               system_clock::now().time_since_epoch())
+        .count();
+}
 void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpData, void *userCookie)
 {
     auto *self = static_cast<TcpStreamHandler *>(userCookie);
@@ -83,6 +104,8 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
 
     if (!state.flowFlagged)
     {
+        uint64_t vfStartMs = nowUnixMs();
+        auto vfStart = std::chrono::steady_clock::now();
         bool anyVf = false;
         std::vector<int> bestHits;
         const size_t maxShift = std::min<size_t>(64, scanWindow.size());
@@ -140,6 +163,19 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
                 bestHits = std::move(validHits);
             }
         }
+        auto vfEnd = std::chrono::steady_clock::now();
+        uint64_t vfEndMs = nowUnixMs();
+        uint64_t vfDurationUs =
+            std::chrono::duration_cast<std::chrono::microseconds>(vfEnd - vfStart).count();
+        if (self->currentScan)
+        {
+            self->currentScan->trace.push_back(makeStamp(
+                janus::common::ENGINE_STAGE_VECTOR_FILTER,
+                vfStartMs,
+                vfEndMs,
+                vfDurationUs,
+                anyVf ? "vf hits found" : "no hits"));
+        }
         if (anyVf)
         {
             if (self->currentScan)
@@ -149,45 +185,93 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
             }
 
             std::string scanDataStr(reinterpret_cast<const char *>(scanWindow.data()), scanWindow.size());
-            bool confirmedByRegex = false;
+            std::string dataStr(reinterpret_cast<const char *>(ahoWindow.data()), ahoWindow.size());
 
-            for (int rid : bestHits)
+            bool confirmed = false;
+
+            // 1) Aho first
+            uint64_t ahoStartMs = nowUnixMs();
+            auto ahoStart = std::chrono::steady_clock::now();
+
+            auto result = self->ahoCorasick.search(dataStr);
+
+            auto ahoEnd = std::chrono::steady_clock::now();
+            uint64_t ahoEndMs = nowUnixMs();
+            uint64_t ahoDurationUs =
+                std::chrono::duration_cast<std::chrono::microseconds>(ahoEnd - ahoStart).count();
+
+            if (self->currentScan)
             {
-                if (self->regexEngine.hasRule(rid))
+                self->currentScan->trace.push_back(makeStamp(
+                    janus::common::ENGINE_STAGE_AHO,
+                    ahoStartMs,
+                    ahoEndMs,
+                    ahoDurationUs,
+                    result.has_value() ? "aho hit" : "no aho hit"));
+            }
+            if (result.has_value())
+            {
+                confirmed = true;
+                state.flowFlagged = true;
+
+                if (self->currentScan)
                 {
+                    self->currentScan->ahoHit = true;
+                    self->currentScan->ahoInfo = result.value();
+                }
+
+                std::println("=== AHO HIT SESSION {} ===", state.sessionId);
+                std::println("{}", result.value());
+            }
+
+            // 2) Regex fallback
+            bool regexRan = false;
+            bool regexHit = false;
+            uint64_t regexStartMs = 0;
+            uint64_t regexEndMs = 0;
+            uint64_t regexDurationUs = 0;
+
+            if (!confirmed)
+            {
+                regexRan = true;
+                regexStartMs = nowUnixMs();
+                auto regexStart = std::chrono::steady_clock::now();
+
+                for (int rid : bestHits)
+                {
+                    if (!self->regexEngine.hasRule(rid))
+                        continue;
+
                     if (self->regexEngine.matchRule(rid, scanDataStr))
                     {
-                        confirmedByRegex = true;
+                        regexHit = true;
+                        confirmed = true;
+                        state.flowFlagged = true;
+
                         if (self->currentScan)
                         {
-                            self->currentScan->ahoInfo = "Regex Hit [Rule " + std::to_string(rid) + "] in TCP stream";
+                            self->currentScan->ahoHit = true; // better rename later
+                            self->currentScan->ahoInfo =
+                                "Regex Hit [Rule " + std::to_string(rid) + "] in TCP stream";
                         }
                         break;
                     }
                 }
-                else
-                {
-                    confirmedByRegex = true;
-                    break;
-                }
+
+                auto regexEnd = std::chrono::steady_clock::now();
+                regexEndMs = nowUnixMs();
+                regexDurationUs =
+                    std::chrono::duration_cast<std::chrono::microseconds>(regexEnd - regexStart).count();
             }
 
-            if (confirmedByRegex)
+            if (regexRan && self->currentScan)
             {
-                std::string dataStr(reinterpret_cast<const char *>(ahoWindow.data()), ahoWindow.size());
-                auto result = self->ahoCorasick.search(dataStr);
-                if (result.has_value())
-                {
-                    state.flowFlagged = true;
-                    if (self->currentScan)
-                    {
-                        self->currentScan->ahoHit = true;
-                        self->currentScan->ahoInfo = result.value();
-                    }
-
-                    std::println("=== AHO HIT SESSION {} ===", state.sessionId);
-                    std::println("{}", result.value());
-                }
+                self->currentScan->trace.push_back(makeStamp(
+                    janus::common::ENGINE_STAGE_REGEX,
+                    regexStartMs,
+                    regexEndMs,
+                    regexDurationUs,
+                    regexHit ? "regex hit" : "no regex hit"));
             }
         }
     }

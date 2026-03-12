@@ -26,6 +26,7 @@ struct Decision
     bool flagged = false;
     std::vector<int> vfHits;
     std::string ahoInfo;
+    std::vector<janus::common::ProcessingStamp> trace;
 };
 
 class PacketPolicy

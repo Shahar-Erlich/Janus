@@ -1,0 +1,92 @@
+[
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -o CMakeFiles/janus_logger.dir/src/Logger.cpp.o -c /home/Shahar/College_Work/Janus/src/Logger.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/Logger.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/janus_logger.dir/src/Logger.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -O3 -march=native -o CMakeFiles/vector_filter.dir/src/VectorFilteringEngine.cpp.o -c /home/Shahar/College_Work/Janus/src/VectorFilteringEngine.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/VectorFilteringEngine.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/vector_filter.dir/src/VectorFilteringEngine.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -O3 -march=native -o CMakeFiles/packet.dir/src/PcapParser.cpp.o -c /home/Shahar/College_Work/Janus/src/PcapParser.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/PcapParser.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/packet.dir/src/PcapParser.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -o CMakeFiles/tcp_handler.dir/src/TcpSessionTracker.cpp.o -c /home/Shahar/College_Work/Janus/src/TcpSessionTracker.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/TcpSessionTracker.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/tcp_handler.dir/src/TcpSessionTracker.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -o CMakeFiles/tcp_handler.dir/src/TcpStreamHandler.cpp.o -c /home/Shahar/College_Work/Janus/src/TcpStreamHandler.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/TcpStreamHandler.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/tcp_handler.dir/src/TcpStreamHandler.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -O3 -march=native -o CMakeFiles/blacklist_handler.dir/src/BlacklistHandler.cpp.o -c /home/Shahar/College_Work/Janus/src/BlacklistHandler.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/BlacklistHandler.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/blacklist_handler.dir/src/BlacklistHandler.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -o CMakeFiles/regex_engine.dir/src/RegexEngine.cpp.o -c /home/Shahar/College_Work/Janus/src/RegexEngine.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/RegexEngine.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/regex_engine.dir/src/RegexEngine.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -O3 -march=native -o CMakeFiles/policy_handler.dir/src/PacketPolicy.cpp.o -c /home/Shahar/College_Work/Janus/src/PacketPolicy.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/PacketPolicy.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/policy_handler.dir/src/PacketPolicy.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -o CMakeFiles/aho_corasick.dir/src/AhoCorasick.cpp.o -c /home/Shahar/College_Work/Janus/src/AhoCorasick.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/AhoCorasick.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/aho_corasick.dir/src/AhoCorasick.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -o CMakeFiles/icd_loader.dir/src/IcdLoader.cpp.o -c /home/Shahar/College_Work/Janus/src/IcdLoader.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/IcdLoader.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/icd_loader.dir/src/IcdLoader.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -mavx2 -O3 -march=native -o CMakeFiles/janus_core.dir/src/Core.cpp.o -c /home/Shahar/College_Work/Janus/src/Core.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/Core.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/janus_core.dir/src/Core.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -O3 -march=native -o CMakeFiles/main.dir/main.cpp.o -c /home/Shahar/College_Work/Janus/main.cpp",
+  "file": "/home/Shahar/College_Work/Janus/main.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/main.dir/main.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -O3 -march=native -o CMakeFiles/main_2.dir/main_2.cpp.o -c /home/Shahar/College_Work/Janus/main_2.cpp",
+  "file": "/home/Shahar/College_Work/Janus/main_2.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/main_2.dir/main_2.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -O3 -march=native -o CMakeFiles/main_3.dir/main_3.cpp.o -c /home/Shahar/College_Work/Janus/main_3.cpp",
+  "file": "/home/Shahar/College_Work/Janus/main_3.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/main_3.dir/main_3.cpp.o"
+},
+{
+  "directory": "/home/Shahar/College_Work/Janus/build",
+  "command": "/usr/bin/clang++ -I/home/Shahar/College_Work/Janus/include -g -std=gnu++23 -O3 -march=native -o CMakeFiles/janus.dir/src/Janus.cpp.o -c /home/Shahar/College_Work/Janus/src/Janus.cpp",
+  "file": "/home/Shahar/College_Work/Janus/src/Janus.cpp",
+  "output": "/home/Shahar/College_Work/Janus/build/CMakeFiles/janus.dir/src/Janus.cpp.o"
+}
+]

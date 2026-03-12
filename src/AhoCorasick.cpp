@@ -2,14 +2,12 @@
 
 void AhoCorasick::calcFailureLink(const int vertex)
 {
-    // Processing root
     if (vertex == _root)
     {
         _trie[vertex].failure_link = _root;
         return;
     }
 
-    // Processing children of the root
     if (_trie[vertex].parent == _root)
     {
         _trie[vertex].failure_link = _root;
@@ -32,10 +30,9 @@ void AhoCorasick::calcFailureLink(const int vertex)
             _trie[vertex].failure_link = _root;
             break;
         }
-        next_failure_vertex = _trie[next_failure_vertex].failure_link; // goes up in the trie
+        next_failure_vertex = _trie[next_failure_vertex].failure_link;
     }
 
-    // Inherits all matched pattern outputs from the failure link
     const int failure = _trie[vertex].failure_link;
     _trie[vertex].output_links.insert(
         _trie[vertex].output_links.end(),
@@ -45,7 +42,6 @@ void AhoCorasick::calcFailureLink(const int vertex)
 
 AhoCorasick::AhoCorasick() : _size(0), _root(0), _word_id(0)
 {
-    // Add root node
     _trie.push_back(Vertex{});
     _size++;
 }
@@ -57,9 +53,9 @@ void AhoCorasick::clear()
 {
     _patterns.clear();
     _trie.clear();
-    _trie.push_back(Vertex{}); // Add root node
-    _size = 1;                 // Only the root node remains
-    _word_id = 0;              // Reset word ID counter
+    _trie.push_back(Vertex{});
+    _size = 1;
+    _word_id = 0;
 }
 
 void AhoCorasick::addString(const std::string &pattern)

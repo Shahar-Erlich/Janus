@@ -11,20 +11,23 @@
 #include "VectorFilteringEngine.hpp"
 #include "RegexEngine.hpp"
 #include "IcdLoader.hpp"
+#include "include/janus_common.pb.h"
+#include "include/janus_packet.pb.h"
 struct ConnectionState
 {
     std::vector<uint8_t> clientBuffer;
     std::vector<uint8_t> serverBuffer;
     int sessionId = 0;
-    bool flowFlagged = false; // אם תרצה בעתיד drop-fast על כל הסשן
+    bool flowFlagged = false;
 };
 
 struct TcpPacketScanResult
 {
     bool vfHit = false;
-    std::vector<int> vfRuleIds; // ruleIds (מה-VF)
+    std::vector<int> vfRuleIds;
     bool ahoHit = false;
-    std::string ahoInfo; // מה ש-Aho מחזיר (אם יש)
+    std::string ahoInfo;
+    std::vector<janus::common::ProcessingStamp> trace;
 };
 
 class TcpStreamHandler
@@ -40,9 +43,9 @@ public:
     void shutdown();
 
 private:
-    static constexpr std::size_t MAX_ANCHOR_LEN = 4;     // VF anchor limit
-    static constexpr std::size_t MAX_STREAM_KEEP = 4096; // keep last bytes
-    static constexpr std::size_t AHO_TAIL = 64;          // tail for aho window
+    static constexpr std::size_t MAX_ANCHOR_LEN = 4;
+    static constexpr std::size_t MAX_STREAM_KEEP = 4096;
+    static constexpr std::size_t AHO_TAIL = 64;
 
     static void onConnectionStart(const pcpp::ConnectionData &connectionData, void *userCookie);
     static void onDataReady(int8_t side, const pcpp::TcpStreamData &tcpData, void *userCookie);

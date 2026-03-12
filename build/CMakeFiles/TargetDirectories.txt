@@ -1,0 +1,16 @@
+/home/Shahar/College_Work/Janus/build/CMakeFiles/janus_logger.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/vector_filter.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/packet.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/tcp_handler.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/blacklist_handler.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/regex_engine.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/policy_handler.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/aho_corasick.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/icd_loader.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/janus_core.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/main.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/main_2.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/main_3.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/janus.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/edit_cache.dir
+/home/Shahar/College_Work/Janus/build/CMakeFiles/rebuild_cache.dir

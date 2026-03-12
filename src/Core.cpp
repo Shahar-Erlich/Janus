@@ -9,6 +9,9 @@
 #include <pcapplusplus/TcpLayer.h>
 #include <pcapplusplus/UdpLayer.h>
 #include "IcdLoader.hpp"
+#include "janus_common.pb.h"
+#include "janus_packet.pb.h"
+#include <chrono>
 
 Core::Core(uint16_t queueNum, AhoCorasick &ac)
     : m_queueNum{queueNum},
@@ -64,7 +67,13 @@ void Core::sendVerdict(uint32_t id, std::size_t verdict)
         return;
     }
 }
-
+static uint64_t nowUnixMs()
+{
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(
+               system_clock::now().time_since_epoch())
+        .count();
+}
 void Core::handlePacket(const nlmsghdr *netLinkHeader)
 {
     // NFQUEUE netlink attribute indices (NFQA_*)
@@ -77,7 +86,11 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
 
     // NFQA_PAYLOAD         - Raw packet bytes (L3/L4 depending on mode)
     //                        Used for IP/TCP/UDP/application parsing
-
+    janus::packet::PacketDecisionEvent packetDecision;
+    auto *preProcessingStamp = packetDecision.add_processing_trace();
+    preProcessingStamp->set_stage(janus::common::ENGINE_STAGE_PREPROCESS);
+    preProcessingStamp->set_started_unix_ms(nowUnixMs());
+    auto start = std::chrono::steady_clock::now();
     nlattr *attr[NFQA_MAX + 1]{};
 
     if (nfq_nlmsg_parse(netLinkHeader, attr) < 0)
@@ -90,6 +103,11 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
         Logger::error("No NFQA packet header");
         return;
     }
+    if (!attr[NFQA_PAYLOAD])
+    {
+        Logger::error("No NFQA payload");
+        return;
+    }
     auto *packetHeader = reinterpret_cast<nfqnl_msg_packet_hdr *>(mnl_attr_get_payload(attr[NFQA_PACKET_HDR]));
     uint32_t packetID = ntohl(packetHeader->packet_id);
 
@@ -99,20 +117,63 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
     gettimeofday(&time, NULL);
     pcpp::RawPacket packet = pcpp::RawPacket(rawPayloadBytes, payloadLength, time, false, pcpp::LINKTYPE_IPV4);
     pcpp::Packet parsedPacket = pcpp::Packet(&packet);
-    // Logger::log(parsedPacket.toString());
     auto ipLayer = parsedPacket.getLayerOfType<pcpp::IPv4Layer>();
-    // if (ipLayer)
-    // {
 
-    //     if (BlacklistHandler::isIPBlacklisted(parsedPacket))
-    //     {
-    //         Logger::error("Blocked blacklisted IP: " + ipLayer->getSrcIPAddress().toString());
-    //         sendVerdict(packetID, NF_DROP);
-    //         return;
-    //     }
-    // }
-    // std::println("THREAD {} GOT MESSAGE!!!!!!!", m_queueNum);
+    auto end = std::chrono::steady_clock::now();
+    uint64_t durationUs =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
+    preProcessingStamp->set_finished_unix_ms(nowUnixMs());
+    preProcessingStamp->set_duration_us(durationUs);
+    preProcessingStamp->set_status("ok");
+
     auto decision = packetPolicy->evaluate(parsedPacket);
+    for (const auto &stamp : decision.trace)
+    {
+        packetDecision.add_processing_trace()->CopyFrom(stamp);
+    }
+    packetDecision.set_flagged(decision.flagged);
+    packetDecision.set_inspected(decision.inspected);
+    uint64_t endToEndTime =
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
+
+    packetDecision.set_end_to_end_processing_us(endToEndTime);
+    packetDecision.set_verdict(decision.verdict == FinalVerdict::ALLOW ? janus::common::Verdict::VERDICT_ALLOW : janus::common::Verdict::VERDICT_DROP);
+    auto *meta = packetDecision.mutable_metadata();
+    meta->set_packet_id(packetID);
+    meta->set_queue_id(m_queueNum);
+    meta->set_ts_unix_ms(nowUnixMs());
+    meta->set_payload_length(payloadLength);
+
+    if (parsedPacket.isPacketOfType(pcpp::TCP))
+        meta->set_protocol(janus::common::PROTOCOL_TCP);
+    else if (parsedPacket.isPacketOfType(pcpp::UDP))
+        meta->set_protocol(janus::common::PROTOCOL_UDP);
+    else
+        meta->set_protocol(janus::common::PROTOCOL_OTHER);
+
+    if (ipLayer)
+    {
+        meta->mutable_source()->set_ip(ipLayer->getSrcIPAddress().toString());
+        meta->mutable_destination()->set_ip(ipLayer->getDstIPAddress().toString());
+    }
+    if (auto *tcpLayer = parsedPacket.getLayerOfType<pcpp::TcpLayer>())
+    {
+        meta->mutable_source()->set_port(tcpLayer->getTcpHeader()->portSrc);
+        meta->mutable_destination()->set_port(tcpLayer->getTcpHeader()->portDst);
+    }
+    else if (auto *udpLayer = parsedPacket.getLayerOfType<pcpp::UdpLayer>())
+    {
+        meta->mutable_source()->set_port(udpLayer->getUdpHeader()->portSrc);
+        meta->mutable_destination()->set_port(udpLayer->getUdpHeader()->portDst);
+    }
+    packetDecision.set_match_info(decision.ahoInfo);
+
+    for (int rid : decision.vfHits)
+    {
+        auto *hit = packetDecision.add_rule_hits();
+        hit->set_rule_id(rid);
+    }
 
     if (decision.verdict == FinalVerdict::DROP)
         sendVerdict(packetID, NF_DROP);
@@ -122,6 +183,8 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
 
 void Core::init()
 {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
     m_nlSocket = mnl_socket_open(NETLINK_NETFILTER);
     if (!m_nlSocket)
     {
@@ -143,7 +206,7 @@ void Core::init()
 
     nlh = nfq_nlmsg_put(buf,
                         NFQNL_MSG_CONFIG,
-                        m_queueNum); // your queue number here
+                        m_queueNum);
 
     // Add maxlen attribute
     uint32_t maxlen = htonl(50000);
@@ -179,7 +242,6 @@ void Core::run()
     bool running = true;
     while (running)
     {
-        // Logger::log("Waiting for message");
         std::size_t receivedMessageLength = mnl_socket_recvfrom(m_nlSocket, m_buffer.data(), m_buffer.size());
         if (receivedMessageLength <= 0)
         {
@@ -188,4 +250,5 @@ void Core::run()
         // TODO: change the 0 magic number (SEQ NUMBER)
         mnl_cb_run(m_buffer.data(), receivedMessageLength, 0, mnl_socket_get_portid(m_nlSocket), Core::mnlCallback, this);
     }
+    google::protobuf::ShutdownProtobufLibrary();
 }
