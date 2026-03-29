@@ -861,6 +861,17 @@
             "regex": "\\x90{4,}",
             "action": "BLOCK",
             "desc": "Buffer Overflow NOP Sled (\\x90)"
+        },
+        {
+            "id": "TEST_RULE",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 2,
+            "value_hex": "2A3D",
+            "regex": "",
+            "action": "FLAG",
+            "desc": "testing rule adding"
         }
     ]
 }

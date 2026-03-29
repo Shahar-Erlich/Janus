@@ -1,11 +1,15 @@
-import { topSourceIps } from '../../data/mockData';
+import type { TopSourceIp } from '../../types';
 import { SectionCard } from '../SectionCard';
 
-export function TopSourceIpsCard() {
+type TopSourceIpsCardProps = {
+  items: TopSourceIp[];
+};
+
+export function TopSourceIpsCard({ items }: TopSourceIpsCardProps) {
   return (
     <SectionCard title="Top Source IPs" className="mini-card">
       <div className="stack-list compact-list">
-        {topSourceIps.map((item) => (
+        {items.map((item) => (
           <div key={item.ip} className="list-row between">
             <span>{item.ip}</span>
             <strong>{item.requests}</strong>

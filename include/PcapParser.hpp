@@ -72,21 +72,5 @@ namespace PcapParser
  * @return false if packet sending has failed
  */
 bool sendPacket(const pcpp::Packet &packet);
-/**
- * @brief send TCP packet to destination
- *
- * @param parsed pcpp::Packet object to send that includes the destination
- */
-void sendTcpPacket(const pcpp::Packet &packet);
-/**
- * @brief send UDP packet to destination
- *
- * @param parsed pcpp::Packet object to send that includes the destination
- */
-void sendUdpPacket(const pcpp::Packet &packet);
-/**
- * @brief send ICMP packet to destination
- *
- * @param parsed pcpp::Packet object to send that includes the destination
- */
-void sendIcmpPacket(const pcpp::Packet &packet);
+bool sendTcpPacket(const pcpp::Packet &packet);
+bool sendUdpPacket(const pcpp::Packet &packet);

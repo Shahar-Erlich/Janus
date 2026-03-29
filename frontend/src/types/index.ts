@@ -66,7 +66,7 @@ export type PacketRecord = {
   destinationIp: string;
   sourcePort: number;
   destinationPort: number;
-  protocol: 'TCP' | 'UDP' | 'HTTP';
+  protocol: 'TCP' | 'UDP' | 'HTTP' | 'OTHER';
   enginePath: Array<'INGRESS' | 'POLICY' | 'SPI' | 'DPI' | 'EGRESS'>;
   latencyMs: number;
   actionReason: string;

@@ -1,13 +1,17 @@
-import { triggeredRules } from '../../data/mockData';
+import type { TriggeredRule } from '../../types';
 import { severityToClass } from '../../utils/format';
 import { SectionCard } from '../SectionCard';
 
-export function TriggeredRulesCard() {
+type TriggeredRulesCardProps = {
+  items: TriggeredRule[];
+};
+
+export function TriggeredRulesCard({ items }: TriggeredRulesCardProps) {
   return (
     <SectionCard title="Triggered Rules" className="mini-card">
       <div className="stack-list compact-list">
-        {triggeredRules.map((item) => (
-          <div key={item.rule} className="rule-row">
+        {items.map((item) => (
+          <div key={`${item.rule}-${item.hits}`} className="rule-row">
             <div>
               <div className="rule-title">{item.rule}</div>
               <div className="progress-track">

@@ -1,13 +1,21 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { detectionResults } from '../../data/mockData';
+import type { DetectionEngineBar } from '../../types';
 import { SectionCard } from '../SectionCard';
 
-export function DetectionResultsChart() {
+type DetectionResultsChartProps = {
+  data: DetectionEngineBar[];
+};
+
+export function DetectionResultsChart({ data }: DetectionResultsChartProps) {
   return (
-    <SectionCard title="Detection Results per Engine" className="detection-card">
+    <SectionCard
+      title="Packets Reaching Each Stage"
+      subtitle="Stage activity counts, not block decisions"
+      className="detection-card"
+    >
       <div className="chart-wrapper chart-medium">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={detectionResults}>
+          <BarChart data={data}>
             <CartesianGrid stroke="rgba(106, 140, 179, 0.1)" vertical={false} />
             <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#6f8eb6', fontSize: 12 }} />
             <YAxis hide />

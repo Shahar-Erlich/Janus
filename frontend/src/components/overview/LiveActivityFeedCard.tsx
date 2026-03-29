@@ -1,12 +1,16 @@
-import { activityFeed } from '../../data/mockData';
+import type { ActivityFeedItem } from '../../types';
 import { SectionCard } from '../SectionCard';
 
-export function LiveActivityFeedCard() {
+type LiveActivityFeedCardProps = {
+  items: ActivityFeedItem[];
+};
+
+export function LiveActivityFeedCard({ items }: LiveActivityFeedCardProps) {
   return (
     <SectionCard title="Live Activity Feed" className="mini-card">
       <div className="activity-list">
-        {activityFeed.map((item) => (
-          <div key={`${item.time}-${item.source}`} className="activity-item">
+        {items.map((item) => (
+          <div key={`${item.time}-${item.source}-${item.message}`} className="activity-item">
             <span className="activity-line" />
             <div>
               <div className="activity-time">{item.time}</div>

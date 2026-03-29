@@ -1,6 +1,7 @@
 #include "Janus.hpp"
 #include <fstream>
 AhoCorasick Janus::globalAhoCorasick;
+SystemEventSender Janus::systemEventSender;
 std::vector<std::unique_ptr<Janus::WorkerThread>> Janus::workerThreads;
 Janus::~Janus()
 {
@@ -11,7 +12,7 @@ void Janus::WorkerThread::threadRun()
     workerCore->init();
 }
 
-Janus::WorkerThread::WorkerThread(int queueNumber) : workerCore(std::make_unique<Core>(queueNumber, globalAhoCorasick)),
+Janus::WorkerThread::WorkerThread(int queueNumber) : workerCore(std::make_unique<Core>(queueNumber, globalAhoCorasick, systemEventSender)),
                                                      workerThread(&Janus::WorkerThread::threadRun, this)
 {
 }

@@ -7,27 +7,15 @@
 #include <pcapplusplus/UdpLayer.h>
 #include <print>
 #include <chrono>
-
+#include "Logger.hpp"
+#include <filesystem>
 PacketPolicy::PacketPolicy(AhoCorasick &ac)
     : ahoCorasick(ac),
       vectorEngine(),
       regexEngine(),
       tcpHandler(ac, vectorEngine, regexEngine)
 {
-    auto loaded = IcdLoader::loadFromFile("/app/icd.json");
-    vectorEngine.build(loaded.rules);
-    metaByRuleId = std::move(loaded.metaByRuleId);
-    tcpHandler.setRuleMeta(&metaByRuleId);
-    maxScanShiftBytes = loaded.maxScanShiftBytes;
-    for (const auto &[rid, meta] : metaByRuleId)
-    {
-        if (!meta.regex_pattern.empty())
-        {
-            regexEngine.addRule(rid, meta.regex_pattern, meta.desc);
-        }
-    }
-    std::println("PacketPolicy ready. ICD loaded rules={}", loaded.rules.size());
-    std::println("PacketPolicy: maxScanShiftBytes={}", maxScanShiftBytes);
+    reloadRulesFromDisk();
 }
 
 void PacketPolicy::readPolicyLists()
@@ -35,7 +23,74 @@ void PacketPolicy::readPolicyLists()
     BlacklistHandler::initializeIPList();
     BlacklistHandler::initializePortList();
 }
+void PacketPolicy::reloadRulesFromDisk()
+{
+    auto loaded = IcdLoader::loadFromFile(icdPath);
 
+    VectorFilteringEngine nextVectorEngine;
+    nextVectorEngine.build(loaded.rules);
+
+    RegexEngine nextRegexEngine;
+    for (const auto &[rid, meta] : loaded.metaByRuleId)
+    {
+        if (!meta.regex_pattern.empty())
+        {
+            nextRegexEngine.addRule(rid, meta.regex_pattern, meta.desc);
+        }
+    }
+
+    vectorEngine = std::move(nextVectorEngine);
+    regexEngine = std::move(nextRegexEngine);
+    metaByRuleId = std::move(loaded.metaByRuleId);
+    maxScanShiftBytes = loaded.maxScanShiftBytes;
+
+    tcpHandler.shutdown();
+    tcpHandler.setRuleMeta(&metaByRuleId);
+
+    std::error_code ec;
+    if (std::filesystem::exists(icdPath, ec) && !ec)
+    {
+        icdLastWriteTime = std::filesystem::last_write_time(icdPath, ec);
+        icdWriteTimeKnown = !ec;
+    }
+    else
+    {
+        icdWriteTimeKnown = false;
+    }
+
+    std::println("PacketPolicy loaded ICD rules={}", metaByRuleId.size());
+    std::println("PacketPolicy maxScanShiftBytes={}", maxScanShiftBytes);
+}
+
+void PacketPolicy::reloadRulesIfChanged()
+{
+    std::error_code ec;
+    if (!std::filesystem::exists(icdPath, ec) || ec)
+    {
+        return;
+    }
+
+    const auto currentWriteTime = std::filesystem::last_write_time(icdPath, ec);
+    if (ec)
+    {
+        return;
+    }
+
+    if (icdWriteTimeKnown && currentWriteTime == icdLastWriteTime)
+    {
+        return;
+    }
+
+    try
+    {
+        reloadRulesFromDisk();
+        std::println("PacketPolicy hot-reloaded rules from {}", icdPath);
+    }
+    catch (const std::exception &ex)
+    {
+        Logger::error("Failed to hot-reload ICD rules: " + std::string(ex.what()));
+    }
+}
 static bool protoMatches(IcdRuleMeta::Proto ruleProto, IcdRuleMeta::Proto pktProto)
 {
     return (ruleProto == IcdRuleMeta::Proto::ANY) || (ruleProto == pktProto);
@@ -137,6 +192,7 @@ static uint64_t nowUnixMs()
 
 Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
 {
+    reloadRulesIfChanged();
     janus::common::ProcessingStamp policyStamp;
     policyStamp.set_stage(janus::common::ENGINE_STAGE_POLICY);
     auto start = std::chrono::steady_clock::now();
@@ -218,7 +274,6 @@ Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
         {
 
             std::println("AHO hit: {}", d.ahoInfo);
-            finishPolicy("packet Denied");
         }
         finishPolicy(d.verdict == FinalVerdict::DROP ? "packet Denied" : "packet Approved");
         return d;

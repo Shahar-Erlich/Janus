@@ -1,16 +1,17 @@
 #pragma once
-#include <unordered_map>
-#include <vector>
+#include <filesystem>
 #include <span>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include <pcapplusplus/Packet.h>
 
 #include "AhoCorasick.hpp"
-#include "VectorFilteringEngine.hpp"
-#include "TcpStreamHandler.hpp"
 #include "IcdLoader.hpp"
 #include "RegexEngine.hpp"
+#include "TcpStreamHandler.hpp"
+#include "VectorFilteringEngine.hpp"
 
 enum class FinalVerdict
 {
@@ -43,6 +44,9 @@ private:
 
     IcdRuleMeta::Action worstActionForHits(const std::vector<int> &hits, IcdRuleMeta::Proto proto) const;
 
+    void reloadRulesFromDisk();
+    void reloadRulesIfChanged();
+
 private:
     AhoCorasick &ahoCorasick;
     RegexEngine regexEngine;
@@ -51,4 +55,8 @@ private:
     int maxScanShiftBytes = 64;
 
     TcpStreamHandler tcpHandler;
+
+    std::string icdPath = "/app/icd.json";
+    std::filesystem::file_time_type icdLastWriteTime{};
+    bool icdWriteTimeKnown = false;
 };

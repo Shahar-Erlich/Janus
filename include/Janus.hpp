@@ -8,6 +8,7 @@
 #include "TcpStreamHandler.hpp"
 #include "VectorFilteringEngine.hpp"
 #include "AhoCorasick.hpp"
+#include "SystemEventSender.hpp"
 
 #define MAX_WORKER_THREAD 4
 
@@ -29,5 +30,6 @@ public:
     ~Janus();
     static void init();
     static AhoCorasick globalAhoCorasick;
+    static SystemEventSender systemEventSender;
     static std::vector<std::unique_ptr<WorkerThread>> workerThreads;
 };

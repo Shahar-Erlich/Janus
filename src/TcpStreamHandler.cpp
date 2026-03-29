@@ -101,7 +101,24 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
         ahoWindow.insert(ahoWindow.end(), buffer.end() - ahoTail, buffer.end());
     }
     ahoWindow.insert(ahoWindow.end(), data, data + len);
+    if (state.flowConfirmed)
+    {
+        if (self->currentScan)
+        {
+            self->currentScan->vfHit = !state.confirmedRuleIds.empty();
+            self->currentScan->vfRuleIds = state.confirmedRuleIds;
+            self->currentScan->ahoHit = true;
+            self->currentScan->ahoInfo = state.confirmedAhoInfo;
+        }
 
+        buffer.insert(buffer.end(), data, data + len);
+        if (buffer.size() > MAX_STREAM_KEEP)
+        {
+            const std::size_t drop = buffer.size() - MAX_STREAM_KEEP;
+            buffer.erase(buffer.begin(), buffer.begin() + drop);
+        }
+        return;
+    }
     if (!state.flowFlagged)
     {
         uint64_t vfStartMs = nowUnixMs();
@@ -213,7 +230,9 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
             {
                 confirmed = true;
                 state.flowFlagged = true;
-
+                state.flowConfirmed = true;
+                state.confirmedRuleIds = bestHits;
+                state.confirmedAhoInfo = result.value();
                 if (self->currentScan)
                 {
                     self->currentScan->ahoHit = true;
@@ -247,7 +266,10 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
                         regexHit = true;
                         confirmed = true;
                         state.flowFlagged = true;
-
+                        state.flowConfirmed = true;
+                        state.confirmedRuleIds = bestHits;
+                        state.confirmedAhoInfo =
+                            "Regex Hit [Rule " + std::to_string(rid) + "] in TCP stream";
                         if (self->currentScan)
                         {
                             self->currentScan->ahoHit = true; // better rename later

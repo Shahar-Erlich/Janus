@@ -11,14 +11,17 @@
 #include "VectorFilteringEngine.hpp"
 #include "RegexEngine.hpp"
 #include "IcdLoader.hpp"
-#include "include/janus_common.pb.h"
-#include "include/janus_packet.pb.h"
+#include "janus_common.pb.h"
+#include "janus_packet.pb.h"
 struct ConnectionState
 {
     std::vector<uint8_t> clientBuffer;
     std::vector<uint8_t> serverBuffer;
     int sessionId = 0;
     bool flowFlagged = false;
+    bool flowConfirmed = false;
+    std::vector<int> confirmedRuleIds;
+    std::string confirmedAhoInfo;
 };
 
 struct TcpPacketScanResult

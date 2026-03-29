@@ -13,12 +13,13 @@
 #include "janus_packet.pb.h"
 #include <chrono>
 
-Core::Core(uint16_t queueNum, AhoCorasick &ac)
+Core::Core(uint16_t queueNum, AhoCorasick &ac, SystemEventSender &ses)
     : m_queueNum{queueNum},
       m_buffer(MNL_SOCKET_BUFFER_SIZE),
       m_verdictBuffer(MNL_SOCKET_BUFFER_SIZE),
       m_ahoCorasick(ac),
-      packetPolicy(std::make_unique<PacketPolicy>(ac))
+      packetPolicy(std::make_unique<PacketPolicy>(ac)),
+      systemSender(ses)
 {
 }
 Core::~Core() noexcept
@@ -174,7 +175,11 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
         auto *hit = packetDecision.add_rule_hits();
         hit->set_rule_id(rid);
     }
-
+    bool queued = systemSender.enqueue(packetDecision);
+    if (!queued)
+    {
+        Logger::error("SystemEventSender enqueue failed (queue full)");
+    }
     if (decision.verdict == FinalVerdict::DROP)
         sendVerdict(packetID, NF_DROP);
     else

@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+protobuf
+psycopg[binary]
+psycopg_pool

@@ -1,0 +1,176 @@
+syntax = "proto3";
+
+package janus.frontend;
+
+import "janus_common.proto";
+import "janus_packet.proto";
+
+message Ping {
+  string message = 1;
+}
+
+message Pong {
+  string message = 1;
+  uint64 server_time_ms = 2;
+}
+
+message Ack {
+  string message = 1;
+}
+
+message SubscribeLiveRequest {
+  bool enabled = 1;
+}
+
+message RecentPacketsRequest {
+  uint32 limit = 1;
+}
+
+message PacketDetailsRequest {
+  int64 db_event_id = 1;
+}
+
+message DashboardOverviewRequest {}
+
+message PacketSummary {
+  int64 db_event_id = 1;
+  uint64 ts_unix_ms = 2;
+  string source_ip = 3;
+  uint32 source_port = 4;
+  string destination_ip = 5;
+  uint32 destination_port = 6;
+  janus.common.Protocol protocol = 7;
+  janus.common.Verdict verdict = 8;
+  bool flagged = 9;
+  bool inspected = 10;
+  string action_reason = 11;
+  repeated string engine_path = 12;
+  uint64 end_to_end_processing_us = 13;
+  uint32 payload_length = 14;
+  uint32 packet_id = 15;
+  uint32 queue_id = 16;
+}
+
+message ProcessingTraceView {
+  uint32 trace_index = 1;
+  janus.common.EngineStage stage = 2;
+  uint64 started_unix_ms = 3;
+  uint64 finished_unix_ms = 4;
+  uint64 duration_us = 5;
+  string status = 6;
+}
+
+message RuleHitView {
+  int32 rule_id = 1;
+  string rule_name = 2;
+  string rule_desc = 3;
+  janus.common.Protocol protocol = 4;
+  janus.common.RuleAction action = 5;
+  string offset_mode = 6;
+  uint32 offset = 7;
+  uint32 length = 8;
+}
+
+message RecentPacketsResponse {
+  repeated PacketSummary packets = 1;
+}
+
+message PacketDetailsResponse {
+  PacketSummary packet = 1;
+  repeated ProcessingTraceView processing_trace = 2;
+  repeated RuleHitView rule_hits = 3;
+  repeated string payload_preview = 4;
+  repeated string protocol_header_hex = 5;
+}
+
+message OverviewMetric {
+  string label = 1;
+  string value = 2;
+  string delta = 3;
+  string tone = 4;
+  bool highlight = 5;
+}
+
+message TrafficPoint {
+  string time_label = 1;
+  uint64 total_packets = 2;
+  uint64 allowed_packets = 3;
+  uint64 dropped_packets = 4;
+  uint64 flagged_packets = 5;
+}
+
+message ProtocolShare {
+  string name = 1;
+  uint64 total_packets = 2;
+}
+
+message DetectionEngineCount {
+  string name = 1;
+  uint64 total = 2;
+}
+
+message TopSourceIpStat {
+  string ip = 1;
+  uint64 total_packets = 2;
+  uint64 dropped_packets = 3;
+  uint64 flagged_packets = 4;
+  string requests_label = 5;
+}
+
+message TriggeredRuleStat {
+  int32 rule_id = 1;
+  string rule_name = 2;
+  string action = 3;
+  uint64 hit_count = 4;
+  string severity = 5;
+}
+
+message ActivityFeedItem {
+  uint64 ts_unix_ms = 1;
+  string source = 2;
+  string message = 3;
+}
+
+message SummaryItem {
+  string label = 1;
+  string value = 2;
+  string tone = 3;
+}
+
+message DashboardOverviewResponse {
+  repeated OverviewMetric metrics = 1;
+  repeated TrafficPoint traffic_series = 2;
+  repeated ProtocolShare protocol_distribution = 3;
+  repeated DetectionEngineCount detection_results = 4;
+  repeated TopSourceIpStat top_source_ips = 5;
+  repeated TriggeredRuleStat triggered_rules = 6;
+  repeated ActivityFeedItem activity_feed = 7;
+  repeated SummaryItem system_summary = 8;
+}
+
+message FrontendRequest {
+  string request_id = 1;
+
+  oneof payload {
+    SubscribeLiveRequest subscribe_live = 10;
+    RecentPacketsRequest recent_packets = 11;
+    PacketDetailsRequest packet_details = 12;
+    DashboardOverviewRequest dashboard_overview = 13;
+    Ping ping = 14;
+  }
+}
+
+message FrontendResponse {
+  string request_id = 1;
+  bool ok = 2;
+  string error = 3;
+
+  oneof payload {
+    Ack ack = 10;
+    janus.packet.PacketDecisionEvent live_packet_event = 11;
+    RecentPacketsResponse recent_packets = 12;
+    PacketDetailsResponse packet_details = 13;
+    DashboardOverviewResponse dashboard_overview = 14;
+    Pong pong = 15;
+  }
+}

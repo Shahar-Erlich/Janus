@@ -9,7 +9,7 @@ export function Topbar({ title }: { title: string }) {
       </div>
 
       <div className="topbar-controls">
-        <div className="status-pill">Production (Monitoring)</div>
+        {/* <div className="status-pill">Production (Monitoring)</div>
         <label className="global-search">
           <Search size={16} />
           <input placeholder="Global search..." />
@@ -31,7 +31,7 @@ export function Topbar({ title }: { title: string }) {
             <div className="user-role">Senior Architect</div>
           </div>
           <UserCircle2 size={28} />
-        </div>
+        </div> */}
       </div>
     </header>
   );

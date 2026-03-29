@@ -5,12 +5,10 @@ import {
   FileText,
   Gauge,
   LayoutDashboard,
-  Network,
   Radio,
   Settings,
   Shield,
   ShieldCheck,
-  Users,
   Waypoints,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -24,10 +22,8 @@ const navItems: NavItem[] = [
   { label: 'Rules & Policies', to: '/rules-policies', icon: ShieldCheck },
   { label: 'Reports & Analytics', to: '/reports-analytics', icon: BarChart3, section: 'Analysis' },
   { label: 'System Health', to: '/system-health', icon: Gauge },
-  { label: 'Remote Control', to: '/remote-control', icon: BellDot },
-  { label: 'User Management', to: '/user-management', icon: Users, section: 'Management' },
-  { label: 'Network Assets', to: '/network-assets', icon: Network },
-  { label: 'Settings', to: '/settings', icon: Settings },
+  // { label: 'Remote Control', to: '/remote-control', icon: BellDot },
+  // { label: 'Settings', to: '/settings', icon: Settings, section: 'Management' },
 ];
 
 export function Sidebar() {
@@ -41,8 +37,8 @@ export function Sidebar() {
           <Shield />
         </div>
         <div>
-          <div className="brand-title">Janus</div>
-          <div className="brand-subtitle">CYBER-OPS</div>
+          <div className="brand-title">Janus SOC</div>
+          <div className="brand-subtitle">MONITORING FABRIC</div>
         </div>
       </div>
 
@@ -75,7 +71,7 @@ export function Sidebar() {
         <div className="status-dot" />
         <div>
           <div className="footer-label">Node Cluster: Secure</div>
-          <div className="footer-subtext">6 engines online</div>
+          <div className="footer-subtext">Telemetry linked to Janus handler</div>
         </div>
         <Waypoints size={16} className="footer-icon" />
       </div>

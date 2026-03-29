@@ -28,6 +28,7 @@ class PacketPolicy;
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include "SystemEventSender.hpp"
 #define QUEUE_NUM 0
 #define WORD_BYTE 4
 
@@ -39,7 +40,7 @@ public:
      *
      * @param queueNum NFQ queue number to use
      */
-    explicit Core(uint16_t queueNum, AhoCorasick &ac);
+    explicit Core(uint16_t queueNum, AhoCorasick &ac, SystemEventSender &ses);
     /**
      * @brief Destroy the Core object
      *
@@ -61,6 +62,7 @@ private:
     AhoCorasick &m_ahoCorasick;
     std::atomic<uint64_t> packetCounter{0};
     std::atomic<uint64_t> verdictCounter{0};
+    SystemEventSender &systemSender;
 
 private:
     /**
