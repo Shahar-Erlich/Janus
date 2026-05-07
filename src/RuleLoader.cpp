@@ -1,4 +1,4 @@
-#include "IcdLoader.hpp"
+#include "RuleLoader.hpp"
 #include "Logger.hpp"
 #include <fstream>
 #include <stdexcept>
@@ -6,6 +6,9 @@
 #include <algorithm>
 
 #include "third_party/json.hpp"
+
+#include "RuleHelper.hpp"
+
 using json = nlohmann::json;
 
 static std::vector<std::uint8_t> hexToBytes(const std::string &hex)
@@ -36,38 +39,7 @@ static std::vector<std::uint8_t> hexToBytes(const std::string &hex)
     return out;
 }
 
-static std::uint32_t stringHash(const std::string &s)
-{
-    std::uint32_t h = 0;
-
-    for (unsigned char c : s)
-        h = h * 31 + c;
-
-    return h;
-}
-static IcdRuleMeta::Action parseAction(std::string a)
-{
-    std::transform(a.begin(), a.end(), a.begin(), ::toupper);
-    if (a == "ALLOW")
-        return IcdRuleMeta::Action::ALLOW;
-    if (a == "FLAG")
-        return IcdRuleMeta::Action::FLAG;
-    if (a == "BLOCK")
-        return IcdRuleMeta::Action::BLOCK;
-    return IcdRuleMeta::Action::FLAG;
-}
-
-static IcdRuleMeta::Proto parseProto(std::string p)
-{
-    std::transform(p.begin(), p.end(), p.begin(), ::toupper);
-    if (p == "TCP")
-        return IcdRuleMeta::Proto::TCP;
-    if (p == "UDP")
-        return IcdRuleMeta::Proto::UDP;
-    return IcdRuleMeta::Proto::ANY;
-}
-
-IcdLoaded IcdLoader::loadFromFile(const std::string &path)
+RuleLoaded RuleLoader::loadFromFile(const std::string &path)
 {
     std::ifstream f(path);
     if (!f.is_open())
@@ -76,7 +48,7 @@ IcdLoaded IcdLoader::loadFromFile(const std::string &path)
     json j;
     f >> j;
 
-    IcdLoaded out;
+    RuleLoaded out;
     out.maxScanShiftBytes = j.value("defaults", json::object()).value("max_scan_shift_bytes", 64);
 
     const auto rulesJ = j.at("vf_rules");
@@ -104,9 +76,7 @@ IcdLoaded IcdLoader::loadFromFile(const std::string &path)
         if ((int)bytes.size() != length)
             throw std::runtime_error("value_hex length mismatch (rule: " + id + ")");
 
-        const std::string key = id + "|" + protoStr + "|" + std::to_string(offset) + "|" +
-                                std::to_string(length) + "|" + hex;
-        const int ruleId = (int)(stringHash(key) & 0x7fffffff);
+        const int ruleId = RuleHelper::idToRuleID(id, protoStr, length, offset, hex);
 
         VFRule rule{};
         rule.ruleId = ruleId;
@@ -119,17 +89,20 @@ IcdLoaded IcdLoader::loadFromFile(const std::string &path)
 
         out.rules.push_back(rule);
 
-        IcdRuleMeta meta{};
+        RuleHelper::RuleMeta meta{};
         meta.id = id;
         meta.desc = desc;
         meta.regex_pattern = regex_pattern;
-        meta.action = parseAction(actionStr);
-        meta.proto = parseProto(protoStr);
+        meta.action = RuleHelper::parseAction(actionStr);
+        meta.proto = RuleHelper::parseProto(protoStr);
         meta.offset_mode = offsetMode;
         meta.exact_offset = offset;
+        meta.length = length;
+        meta.ruleId = ruleId;
+        meta.bytes = rule.bytes;
+
         out.metaByRuleId[ruleId] = std::move(meta);
     }
 
-    Logger::log("Loaded ICD VF rules: " + std::to_string(out.rules.size()));
     return out;
 }

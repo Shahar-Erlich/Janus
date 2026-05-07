@@ -59,7 +59,24 @@ function toSummaryTone(tone: string | undefined): SummaryItem['tone'] {
             return 'neutral';
     }
 }
-
+function mapDetectionStageName(stage: string): string {
+    switch (stage) {
+        case 'ENGINE_STAGE_INSPECTABLE_PAYLOAD':
+            return 'Payload';
+        case 'ENGINE_STAGE_VECTOR_FILTER':
+            return 'Vector Filter';
+        case 'ENGINE_STAGE_AHO':
+            return 'Aho-Corasick';
+        case 'ENGINE_STAGE_REGEX':
+            return 'Regex';
+        default:
+            return stage
+                .replace(/^ENGINE_STAGE_/, '')
+                .replace(/_/g, ' ')
+                .toLowerCase()
+                .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+}
 function toSeverity(value: string | undefined): TriggeredRule['severity'] {
     switch ((value ?? '').toLowerCase()) {
         case 'critical':
@@ -102,7 +119,7 @@ export function mapDashboardOverview(response: DashboardOverviewResponse): Dashb
             value: item.totalPackets,
         })),
         detectionResults: response.detectionResults.map((item) => ({
-            name: item.name,
+            name: mapDetectionStageName(item.name),
             total: item.total,
         })),
         topSourceIps: response.topSourceIps.map((item) => ({

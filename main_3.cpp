@@ -47,12 +47,12 @@ int main()
         else if (proto == pcpp::UDP)
             udpSeen++;
 
-        std::println("\n{}=========Packet {} Data:=========", TerminalColors::Yellow, totalSeen);
-        Logger::log("Source: " + PcapParser::extractSourceAddress(packet).toString());
-        Logger::log("Destination " + PcapParser::extractDestinationAddress(packet).toString());
-        Logger::log(proto == pcpp::TCP ? "TCP packet" : "UDP Packet");
-        Logger::log("port: " + std::to_string(PcapParser::extractPorts(packet)));
-        std::println("=============================={}\n", TerminalColors::Color_Off);
+        // std::println("\n{}=========Packet {} Data:=========", TerminalColors::Yellow, totalSeen);
+        // Logger::log("Source: " + PcapParser::extractSourceAddress(packet).toString());
+        // Logger::log("Destination " + PcapParser::extractDestinationAddress(packet).toString());
+        // Logger::log(proto == pcpp::TCP ? "TCP packet" : "UDP Packet");
+        // Logger::log("port: " + std::to_string(PcapParser::extractPorts(packet)));
+        // std::println("=============================={}\n", TerminalColors::Color_Off);
 
         const bool ok = sendPacket(packet);
 
@@ -74,14 +74,14 @@ int main()
         }
     }
 
-    std::println("\n{}========== Sender Summary =========={}", TerminalColors::Green, TerminalColors::Color_Off);
-    std::println("PCAP: {}", pcapFilePath);
-    std::println("totalSeen={}", totalSeen);
-    std::println("tcpSeen={} udpSeen={} icmpSkipped={}", tcpSeen, udpSeen, icmpSkipped);
-    std::println("sendOk={} sendFailed={}", sendOk, sendFailed);
-    std::println("tcpOk={} tcpFailed={}", tcpOk, tcpFailed);
-    std::println("udpOk={} udpFailed={}", udpOk, udpFailed);
-    std::println("{}===================================={}\n", TerminalColors::Green, TerminalColors::Color_Off);
+    // std::println("\n{}========== Sender Summary =========={}", TerminalColors::Green, TerminalColors::Color_Off);
+    // std::println("PCAP: {}", pcapFilePath);
+    // std::println("totalSeen={}", totalSeen);
+    // std::println("tcpSeen={} udpSeen={} icmpSkipped={}", tcpSeen, udpSeen, icmpSkipped);
+    // std::println("sendOk={} sendFailed={}", sendOk, sendFailed);
+    // std::println("tcpOk={} tcpFailed={}", tcpOk, tcpFailed);
+    // std::println("udpOk={} udpFailed={}", udpOk, udpFailed);
+    // std::println("{}===================================={}\n", TerminalColors::Green, TerminalColors::Color_Off);
 
     return 0;
 }

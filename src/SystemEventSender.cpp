@@ -4,14 +4,14 @@
 
 bool SystemEventSender::sendAll(const void *data, std::size_t len)
 {
-    const char *buf = static_cast<const char *>(data);
+    const char *buffer = static_cast<const char *>(data);
     std::size_t totalSent = 0;
 
     while (totalSent < len)
     {
         ssize_t sent = ::send(
             senderSocket,
-            buf + totalSent,
+            buffer + totalSent,
             len - totalSent,
             MSG_NOSIGNAL);
 
@@ -57,7 +57,7 @@ void SystemEventSender::sendToHandler(const janus::packet::PacketDecisionEvent &
 
         connectToHandler();
 
-        // optional: retry once after reconnect
+        // retry once after reconnect
         if (senderSocket >= 0)
         {
             if (!sendAll(&netPayloadSize, sizeof(netPayloadSize)) ||
@@ -113,8 +113,7 @@ void SystemEventSender::connectToHandler()
         senderSocket = -1;
         return;
     }
-    std::cerr << "Connecting to handler ip=" << HANDLER_IP
-              << " port=" << HANDLER_PORT << "\n";
+
     if (connect(senderSocket, reinterpret_cast<sockaddr *>(&handler), sizeof(handler)) < 0)
     {
         std::cerr << "connect() failed errno=" << errno

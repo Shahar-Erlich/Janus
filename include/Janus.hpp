@@ -20,14 +20,29 @@ private:
     public:
         std::unique_ptr<Core> workerCore;
         std::thread workerThread;
+        /**
+         * @brief construct a worker thread wrapper for a specific NFQUEUE queue
+         *
+         * @param queueNumber queue number assigned to this worker
+         */
         WorkerThread(int queueNumber);
+        /**
+         * @brief entry point for the worker thread
+         */
         void threadRun();
     };
+    /**
+     * @brief create the worker threads
+     *
+     */
     static void createWorkerThreads();
 
 public:
     Janus() = default;
     ~Janus();
+    /**
+     * @brief initialize the global AhoCorasick engine and start all worker threads
+     */
     static void init();
     static AhoCorasick globalAhoCorasick;
     static SystemEventSender systemEventSender;

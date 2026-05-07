@@ -21858,7 +21858,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     to other types. There a few things to note: (1) Floating-point numbers can
     be converted to integers\, (2) A JSON array can be converted to a standard
     `std::vector<short>`\, (3) A JSON object can be converted to C++
-    associative containers such as `std::unordered_map<std::string\,
+    associative containers such as `std::unordered_map<int\,
     json>`.,get__ValueType_const}
 
     @since version 2.1.0
@@ -22137,7 +22137,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     to other types. There a few things to note: (1) Floating-point numbers can
     be converted to integers\, (2) A JSON array can be converted to a standard
     `std::vector<short>`\, (3) A JSON object can be converted to C++
-    associative containers such as `std::unordered_map<std::string\,
+    associative containers such as `std::unordered_map<int\,
     json>`.,operator__ValueType}
 
     @since version 1.0.0

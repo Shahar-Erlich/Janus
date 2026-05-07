@@ -2,14 +2,14 @@
 
 #include <algorithm>
 #include <stdexcept>
-#include <print>
-static inline void bitmapSet(std::array<uint64_t, 4> &bm, uint8_t b)
+
+static inline void bitmapSet(std::array<uint64_t, 4> &bitMap, uint8_t bitToCheck)
 {
-    bm[b >> 6] |= (1ull << (b & 63));
+    bitMap[bitToCheck / BITS_IN_MAP_BUCKET] |= (1ull << (bitToCheck % BITS_IN_MAP_BUCKET));
 }
-static inline bool bitmapHas(const std::array<uint64_t, 4> &bm, uint8_t b)
+static inline bool bitmapHas(const std::array<uint64_t, 4> &bitMap, uint8_t bitToCheck)
 {
-    return (bm[b >> 6] >> (b & 63)) & 1ull;
+    return (bitMap[bitToCheck / BITS_IN_MAP_BUCKET] >> (bitToCheck % BITS_IN_MAP_BUCKET)) & 1ull;
 }
 VFRule VFRule::fromASCII(int id, std::size_t offset, const std::string &ruleString)
 {
@@ -57,89 +57,106 @@ void VectorFilteringEngine::build(const std::vector<VFRule> &rules)
         group.offset = key.offset;
         group.length = key.length;
         padAndPack(group, bucket);
-        m_groups.push_back(std::move(group));
+        m_groups[key] = group;
+    }
+}
+
+void VectorFilteringEngine::addRule(RuleHelper::RuleMeta &newRule)
+{
+    VFRule rule{};
+    rule.ruleId = newRule.ruleId;
+    rule.offset = (std::size_t)newRule.exact_offset;
+    rule.length = (std::uint8_t)newRule.length;
+    rule.bytes = newRule.bytes;
+    rule.description = newRule.desc;
+
+    addRuleToVectorEngine(rule);
+    int ruleId = RuleHelper::idToRuleID(newRule);
+    metaByRuleId->at(ruleId) = std::move(newRule);
+}
+
+bool VectorFilteringEngine::addRuleToVectorEngine(VFRule newRule)
+{
+    GroupKey key{newRule.offset, newRule.length};
+
+    auto it = m_groups.find(key);
+    if (it == m_groups.end())
+    {
+        Group group{};
+        group.offset = newRule.offset;
+        group.length = newRule.length;
+        group.groupRuleCount = 0;
+        group.lanesPadded = simd_u8::size();
+        group.anchorBytes.assign(group.length, std::vector<std::uint8_t>(group.lanesPadded, 0));
+        group.ruleIDs.assign(group.lanesPadded, -1);
+
+        auto inserted = m_groups.emplace(key, std::move(group));
+        it = inserted.first;
     }
 
-    std::sort(m_groups.begin(), m_groups.end(), [](const Group &groupA, const Group &groupB)
-              {
-        if (groupA.offset != groupB.offset) return groupA.offset < groupB.offset;
-        return groupA.length < groupB.length; });
+    Group *groupToInsert = &it->second;
+    if (groupToInsert)
+    {
+        if (groupToInsert->groupRuleCount + 1 > groupToInsert->lanesPadded)
+        {
+            groupToInsert->lanesPadded += simd_u8::size();
+            groupToInsert->ruleIDs.resize(groupToInsert->lanesPadded, -1);
+        }
+
+        groupToInsert->ruleIDs.at(groupToInsert->groupRuleCount) = newRule.ruleId;
+        for (auto &byteVector : groupToInsert->anchorBytes)
+        {
+            byteVector.resize(groupToInsert->lanesPadded, 0);
+        }
+
+        for (int i = 0; i < groupToInsert->length; ++i)
+        {
+            groupToInsert->anchorBytes.at(i).at(groupToInsert->groupRuleCount) = newRule.bytes.at(i);
+        }
+
+        bitmapSet(groupToInsert->firstByteBitmap, newRule.bytes.at(0));
+        m_ruleDescriptions[newRule.ruleId] = newRule.description;
+        groupToInsert->groupRuleCount++;
+        return true;
+    }
+    return false;
 }
 
 void VectorFilteringEngine::padAndPack(Group &group, const std::vector<VFRule> &rulesInGroup)
 {
     constexpr std::size_t width = simd_u8::size();
-    std::println("SMD WIDTH IS: {}", width);
 
     const std::size_t size = rulesInGroup.size();
     const std::size_t padded = ((size + width - 1) / width) * width;
-
+    group.anchorBytes.assign(
+        group.length,
+        std::vector<std::uint8_t>(padded, 0));
     group.lanesPadded = padded;
+    group.groupRuleCount = rulesInGroup.size();
 
-    group.anbchorByte0.assign(padded, 0);
     group.firstByteBitmap = {0, 0, 0, 0};
     for (std::size_t i = 0; i < size; ++i)
     {
         bitmapSet(group.firstByteBitmap, rulesInGroup[i].bytes[0]);
     }
-    group.anbchorByte1.assign(padded, 0);
-    group.anbchorByte2.assign(padded, 0);
-    group.anbchorByte3.assign(padded, 0);
+
     group.ruleIDs.assign(padded, -1);
 
-    for (std::size_t i = 0; i < size; ++i)
+    for (std::size_t currentRule = 0; currentRule < size; ++currentRule)
     {
-        const auto &rule = rulesInGroup[i];
-        group.anbchorByte0[i] = rule.bytes[0];
-        group.anbchorByte1[i] = rule.bytes[1];
-        group.anbchorByte2[i] = rule.bytes[2];
-        group.anbchorByte3[i] = rule.bytes[3];
-        group.ruleIDs[i] = rule.ruleId;
+        const auto &rule = rulesInGroup[currentRule];
+        for (std::size_t anchorByteNumber = 0; anchorByteNumber < group.length; anchorByteNumber++)
+        {
+            std::size_t &ruleByteNumber = anchorByteNumber;
+            group.anchorBytes.at(anchorByteNumber).at(currentRule) = rule.bytes[ruleByteNumber];
+        }
+        group.ruleIDs[currentRule] = rule.ruleId;
     }
 }
-bool VectorFilteringEngine::anyHit(std::span<const std::uint8_t> payload) const
+
+static simd_u8::mask_type compareVectors(simd_u8 payloadVector, simd_u8 anchorVector)
 {
-    constexpr std::size_t width = simd_u8::size();
-
-    for (const auto &group : m_groups)
-    {
-        if (payload.size() < group.offset + group.length)
-            continue;
-
-        const std::uint8_t b0 = payload[group.offset + 0];
-        const std::uint8_t b1 = (group.length >= 2) ? payload[group.offset + 1] : 0;
-        const std::uint8_t b2 = (group.length >= 3) ? payload[group.offset + 2] : 0;
-        const std::uint8_t b3 = (group.length >= 4) ? payload[group.offset + 3] : 0;
-
-        const simd_u8 vp0(b0), vp1(b1), vp2(b2), vp3(b3);
-        if (!bitmapHas(group.firstByteBitmap, b0))
-            continue;
-        for (std::size_t base = 0; base < group.lanesPadded; base += width)
-        {
-            const simd_u8 va0(&group.anbchorByte0[base], simd_ns::element_aligned);
-            mask_t m = (va0 == vp0);
-
-            if (group.length >= 2)
-            {
-                const simd_u8 va1(&group.anbchorByte1[base], simd_ns::element_aligned);
-                m &= (va1 == vp1);
-            }
-            if (group.length >= 3)
-            {
-                const simd_u8 va2(&group.anbchorByte2[base], simd_ns::element_aligned);
-                m &= (va2 == vp2);
-            }
-            if (group.length >= 4)
-            {
-                const simd_u8 va3(&group.anbchorByte3[base], simd_ns::element_aligned);
-                m &= (va3 == vp3);
-            }
-
-            if (any_of(m))
-                return true;
-        }
-    }
-    return false;
+    return payloadVector == anchorVector;
 }
 
 std::vector<int> VectorFilteringEngine::scanPayload(std::span<const std::uint8_t> payload) const
@@ -149,41 +166,26 @@ std::vector<int> VectorFilteringEngine::scanPayload(std::span<const std::uint8_t
 
     constexpr std::size_t width = simd_u8::size();
 
-    for (const auto &group : m_groups)
+    for (const auto &g : m_groups)
     {
+        auto &group = g.second;
         if (payload.size() < group.offset + group.length)
             continue;
-
-        const std::uint8_t payloadByte0 = payload[group.offset + 0];
-        const std::uint8_t payloadByte1 = (group.length >= 2) ? payload[group.offset + 1] : 0;
-        const std::uint8_t payloadByte2 = (group.length >= 3) ? payload[group.offset + 2] : 0;
-        const std::uint8_t payloadByte3 = (group.length >= 4) ? payload[group.offset + 3] : 0;
-
-        const simd_u8 vectorPayload0(payloadByte0);
-        const simd_u8 vectorPayload1(payloadByte1);
-        const simd_u8 vectorPayload2(payloadByte2);
-        const simd_u8 vectorPayload3(payloadByte3);
-        if (!bitmapHas(group.firstByteBitmap, payloadByte0))
+        std::vector<simd_u8> payloadVectors;
+        for (int i = 0; i < group.length; i++)
+        {
+            payloadVectors.emplace_back(payload[group.offset + i]);
+        }
+        if (!bitmapHas(group.firstByteBitmap, payload[group.offset]))
             continue;
         for (std::size_t base = 0; base < group.lanesPadded; base += width)
         {
-            const simd_u8 vectorAnchor0(&group.anbchorByte0[base], simd_ns::element_aligned);
-            mask_t mask = (vectorAnchor0 == vectorPayload0);
-
-            if (group.length >= 2)
+            const simd_u8 vectorAnchor0(&group.anchorBytes.at(0)[base], simd_ns::element_aligned);
+            mask_t mask = compareVectors(payloadVectors.at(0), vectorAnchor0);
+            for (int i = 1; i < group.length; i++)
             {
-                const simd_u8 vectorAnchor1(&group.anbchorByte1[base], simd_ns::element_aligned);
-                mask &= (vectorAnchor1 == vectorPayload1);
-            }
-            if (group.length >= 3)
-            {
-                const simd_u8 vectorAnchor2(&group.anbchorByte2[base], simd_ns::element_aligned);
-                mask &= (vectorAnchor2 == vectorPayload2);
-            }
-            if (group.length >= 4)
-            {
-                const simd_u8 vectorAnchor3(&group.anbchorByte3[base], simd_ns::element_aligned);
-                mask &= (vectorAnchor3 == vectorPayload3);
+                const simd_u8 vectorAnchor(&group.anchorBytes.at(i)[base], simd_ns::element_aligned);
+                mask &= compareVectors(payloadVectors.at(i), vectorAnchor);
             }
 
             if (!any_of(mask))

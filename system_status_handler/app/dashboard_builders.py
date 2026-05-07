@@ -83,20 +83,20 @@ def build_dashboard_overview(payload: dict[str, Any], queue_depth: int) -> Any:
     "ENGINE_STAGE_VECTOR_FILTER": 2,  # displayed as SIMD
     "ENGINE_STAGE_AHO": 3,
     "ENGINE_STAGE_REGEX": 4,
-}
+    }
 
-ordered_stage_latency = sorted(
-    stage_latency,
-    key=lambda row: (
-        stage_order.get(row.get("stage") or "", 999),
-        str(row.get("stage") or ""),
-    ),
-)
+    ordered_stage_latency = sorted(
+        stage_latency,
+        key=lambda row: (
+            stage_order.get(row.get("stage") or "", 999),
+            str(row.get("stage") or ""),
+        ),
+    )
 
-for row in ordered_stage_latency:
-    item = msg.detection_results.add()
-    item.name = display_stage_name(row.get("stage") or "ENGINE_STAGE_UNSPECIFIED")
-    item.total = int(row.get("samples") or 0)
+    for row in ordered_stage_latency:
+        item = msg.detection_results.add()
+        item.name = display_stage_name(row.get("stage") or "ENGINE_STAGE_UNSPECIFIED")
+        item.total = int(row.get("samples") or 0)
     for row in top_source_ips:
         item = msg.top_source_ips.add()
         total = int(row.get("total_packets") or 0)

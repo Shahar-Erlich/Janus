@@ -9,13 +9,26 @@
 #include <chrono>
 #include "Logger.hpp"
 #include <filesystem>
+
 PacketPolicy::PacketPolicy(AhoCorasick &ac)
     : ahoCorasick(ac),
       vectorEngine(),
       regexEngine(),
       tcpHandler(ac, vectorEngine, regexEngine)
 {
-    reloadRulesFromDisk();
+    auto loaded = RuleLoader::loadFromFile("/app/icd.json");
+    vectorEngine.build(loaded.rules);
+
+    for (const auto &[rid, meta] : loaded.metaByRuleId)
+    {
+
+        if (!meta.regex_pattern.empty())
+        {
+            regexEngine.addRule(rid, meta.regex_pattern, meta.desc);
+        }
+    }
+    metaByRuleId = std::move(loaded.metaByRuleId);
+    tcpHandler.setRuleMeta(&metaByRuleId);
 }
 
 void PacketPolicy::readPolicyLists()
@@ -23,96 +36,30 @@ void PacketPolicy::readPolicyLists()
     BlacklistHandler::initializeIPList();
     BlacklistHandler::initializePortList();
 }
-void PacketPolicy::reloadRulesFromDisk()
+
+static bool protoMatches(RuleHelper::RuleMeta::Proto ruleProto, RuleHelper::RuleMeta::Proto pktProto)
 {
-    auto loaded = IcdLoader::loadFromFile(icdPath);
-
-    VectorFilteringEngine nextVectorEngine;
-    nextVectorEngine.build(loaded.rules);
-
-    RegexEngine nextRegexEngine;
-    for (const auto &[rid, meta] : loaded.metaByRuleId)
-    {
-        if (!meta.regex_pattern.empty())
-        {
-            nextRegexEngine.addRule(rid, meta.regex_pattern, meta.desc);
-        }
-    }
-
-    vectorEngine = std::move(nextVectorEngine);
-    regexEngine = std::move(nextRegexEngine);
-    metaByRuleId = std::move(loaded.metaByRuleId);
-    maxScanShiftBytes = loaded.maxScanShiftBytes;
-
-    tcpHandler.shutdown();
-    tcpHandler.setRuleMeta(&metaByRuleId);
-
-    std::error_code ec;
-    if (std::filesystem::exists(icdPath, ec) && !ec)
-    {
-        icdLastWriteTime = std::filesystem::last_write_time(icdPath, ec);
-        icdWriteTimeKnown = !ec;
-    }
-    else
-    {
-        icdWriteTimeKnown = false;
-    }
-
-    std::println("PacketPolicy loaded ICD rules={}", metaByRuleId.size());
-    std::println("PacketPolicy maxScanShiftBytes={}", maxScanShiftBytes);
+    return (ruleProto == RuleHelper::RuleMeta::Proto::ANY) || (ruleProto == pktProto);
 }
 
-void PacketPolicy::reloadRulesIfChanged()
-{
-    std::error_code ec;
-    if (!std::filesystem::exists(icdPath, ec) || ec)
-    {
-        return;
-    }
-
-    const auto currentWriteTime = std::filesystem::last_write_time(icdPath, ec);
-    if (ec)
-    {
-        return;
-    }
-
-    if (icdWriteTimeKnown && currentWriteTime == icdLastWriteTime)
-    {
-        return;
-    }
-
-    try
-    {
-        reloadRulesFromDisk();
-        std::println("PacketPolicy hot-reloaded rules from {}", icdPath);
-    }
-    catch (const std::exception &ex)
-    {
-        Logger::error("Failed to hot-reload ICD rules: " + std::string(ex.what()));
-    }
-}
-static bool protoMatches(IcdRuleMeta::Proto ruleProto, IcdRuleMeta::Proto pktProto)
-{
-    return (ruleProto == IcdRuleMeta::Proto::ANY) || (ruleProto == pktProto);
-}
-static const char *actionName(IcdRuleMeta::Action a)
+static const char *actionName(RuleHelper::RuleMeta::Action a)
 {
     switch (a)
     {
-    case IcdRuleMeta::Action::ALLOW:
+    case RuleHelper::RuleMeta::Action::ALLOW:
         return "ALLOW";
-    case IcdRuleMeta::Action::FLAG:
+    case RuleHelper::RuleMeta::Action::FLAG:
         return "FLAG";
-    case IcdRuleMeta::Action::BLOCK:
+    case RuleHelper::RuleMeta::Action::BLOCK:
         return "BLOCK";
     default:
         return "?";
     }
 }
 
-IcdRuleMeta::Action PacketPolicy::worstActionForHits(const std::vector<int> &hits, IcdRuleMeta::Proto pktProto) const
+RuleHelper::RuleMeta::Action PacketPolicy::worstActionForHits(const std::vector<int> &hits, RuleHelper::RuleMeta::Proto pktProto) const
 {
-    IcdRuleMeta::Action worst = IcdRuleMeta::Action::ALLOW;
+    RuleHelper::RuleMeta::Action worst = RuleHelper::RuleMeta::Action::ALLOW;
 
     for (int rid : hits)
     {
@@ -124,48 +71,45 @@ IcdRuleMeta::Action PacketPolicy::worstActionForHits(const std::vector<int> &hit
         if (!protoMatches(meta.proto, pktProto))
             continue;
 
-        if (meta.action == IcdRuleMeta::Action::BLOCK)
-            return IcdRuleMeta::Action::BLOCK;
+        if (meta.action == RuleHelper::RuleMeta::Action::BLOCK)
+            return RuleHelper::RuleMeta::Action::BLOCK;
 
-        if (meta.action == IcdRuleMeta::Action::FLAG)
-            worst = IcdRuleMeta::Action::FLAG;
+        if (meta.action == RuleHelper::RuleMeta::Action::FLAG)
+            worst = RuleHelper::RuleMeta::Action::FLAG;
     }
 
     return worst;
 }
 std::vector<int> PacketPolicy::scanUdpVf(std::span<const uint8_t> payload) const
 {
-    std::vector<int> out;
+    std::vector<int> rulesHit;
     if (payload.empty())
-        return out;
+        return rulesHit;
 
-    const int maxShift = std::min<int>(maxScanShiftBytes, (int)payload.size());
+    const int maxShift = std::min<int>(MAX_BYTE_SHIFT, (int)payload.size());
 
     for (int shift = 0; shift <= maxShift; ++shift)
     {
-        std::span<const uint8_t> win(payload.data() + shift, payload.size() - shift);
-        auto hits = vectorEngine.scanPayload(win);
+        std::span<const uint8_t> window(payload.data() + shift, payload.size() - shift);
+        auto hits = vectorEngine.scanPayload(window);
 
-        for (int rid : hits)
+        for (int ruleId : hits)
         {
-            auto it = metaByRuleId.find(rid);
-            if (it != metaByRuleId.end())
+            auto iterator = metaByRuleId.find(ruleId);
+            if (iterator != metaByRuleId.end())
             {
-                if (it->second.offset_mode == "EXACT" && shift != 0)
+                if (iterator->second.offset_mode == "EXACT" && shift != 0)
                 {
                     continue;
                 }
-                out.push_back(rid);
+                rulesHit.push_back(ruleId);
             }
-        }
-
-        if (!out.empty())
-        {
-            return out;
         }
     }
 
-    return out;
+    std::sort(rulesHit.begin(), rulesHit.end());
+    rulesHit.erase(std::unique(rulesHit.begin(), rulesHit.end()), rulesHit.end());
+    return rulesHit;
 }
 static janus::common::ProcessingStamp makeTraceEntry(
     janus::common::EngineStage stage,
@@ -189,243 +133,213 @@ static uint64_t nowUnixMs()
                system_clock::now().time_since_epoch())
         .count();
 }
+static void finishPolicy(const std::string &status,
+                         const TimePoint start,
+                         janus::common::ProcessingStamp &policyStamp,
+                         Decision &finalDecision)
+{
+    auto end = std::chrono::steady_clock::now();
+    uint64_t durationUs =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
+    policyStamp.set_finished_unix_ms(nowUnixMs());
+    policyStamp.set_duration_us(durationUs);
+    policyStamp.set_status(status);
+    finalDecision.trace.push_back(policyStamp);
+};
+
+Decision PacketPolicy::evaluateTCP(const pcpp::Packet &packet,
+                                   Decision finalDecision,
+                                   TimePoint start,
+                                   janus::common::ProcessingStamp policyStamp)
+{
+    auto res = tcpHandler.processPacket(const_cast<pcpp::Packet &>(packet));
+
+    finalDecision.vfHits = res.vfRuleIds;
+    finalDecision.ahoInfo = res.ahoInfo;
+    finalDecision.trace.insert(finalDecision.trace.end(), res.trace.begin(), res.trace.end());
+    const auto worst = worstActionForHits(finalDecision.vfHits, RuleHelper::RuleMeta::Proto::TCP);
+
+    if (!res.vfHit)
+    {
+        finalDecision.verdict = FinalVerdict::ALLOW;
+        finishPolicy("packet Approved", start, policyStamp, finalDecision);
+        return finalDecision;
+    }
+
+    finalDecision.flagged = (worst != RuleHelper::RuleMeta::Action::ALLOW);
+
+    finalDecision.inspected = true;
+
+    if (res.ahoHit && worst == RuleHelper::RuleMeta::Action::BLOCK)
+    {
+        finalDecision.verdict = FinalVerdict::DROP;
+        finishPolicy("packet Denied", start, policyStamp, finalDecision);
+        return finalDecision;
+    }
+
+    finalDecision.verdict = FinalVerdict::ALLOW;
+
+    finishPolicy(finalDecision.verdict == FinalVerdict::DROP ? "packet Denied" : "packet Approved", start, policyStamp, finalDecision);
+    return finalDecision;
+}
+
+bool PacketPolicy::udpHasAhoHits(Decision &finalDecision,
+                                 std::span<const uint8_t> &payload,
+                                 janus::common::ProcessingStamp &policyStamp,
+                                 std::string &data)
+{
+    bool confirmedHit = false;
+    uint64_t ahoStartMs = nowUnixMs();
+    auto ahoStart = std::chrono::steady_clock::now();
+    auto ahoResult = ahoCorasick.search(data);
+    auto ahoEnd = std::chrono::steady_clock::now();
+    uint64_t ahoEndMs = nowUnixMs();
+    uint64_t ahoDurationUs =
+        std::chrono::duration_cast<std::chrono::microseconds>(ahoEnd - ahoStart).count();
+    finalDecision.trace.push_back(makeTraceEntry(
+        janus::common::ENGINE_STAGE_AHO,
+        ahoStartMs,
+        ahoEndMs,
+        ahoDurationUs,
+        ahoResult.has_value() ? "aho hit" : "no aho hit"));
+    if (ahoResult.has_value())
+    {
+        confirmedHit = true;
+        policyStamp.set_status("packet Denied Aho Corasick");
+        finalDecision.ahoInfo = ahoResult.value();
+    }
+    return confirmedHit;
+}
+void PacketPolicy::scanRegexUDP(bool &blockPacket,
+                                Decision &finalDecision,
+                                janus::common::ProcessingStamp &policyStamp,
+                                std::string &data)
+{
+    uint64_t regexStartMs = 0;
+    uint64_t regexEndMs = 0;
+    uint64_t regexDurationUs = 0;
+    bool regexHit = false;
+    auto regexStart = std::chrono::steady_clock::now();
+    regexStartMs = nowUnixMs();
+
+    for (int rid : finalDecision.vfHits)
+    {
+        auto it = metaByRuleId.find(rid);
+        if (it != metaByRuleId.end())
+        {
+            if (!it->second.regex_pattern.empty())
+            {
+                if (regexEngine.matchRule(rid, data))
+                {
+                    regexHit = true;
+                    policyStamp.set_status("packet Denied REGEX");
+                    finalDecision.ahoInfo = "Regex Hit [Rule " + std::to_string(rid) + "]: " + it->second.desc;
+                    blockPacket = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    auto regexEnd = std::chrono::steady_clock::now();
+    regexEndMs = nowUnixMs();
+    regexDurationUs =
+        std::chrono::duration_cast<std::chrono::microseconds>(regexEnd - regexStart).count();
+    finalDecision.trace.push_back(makeTraceEntry(
+        janus::common::ENGINE_STAGE_REGEX,
+        regexStartMs,
+        regexEndMs,
+        regexDurationUs,
+        regexHit ? "regex hit" : "no regex hit"));
+}
+
+Decision PacketPolicy::evaluateUDP(const pcpp::Packet &packet,
+                                   Decision finalDecision,
+                                   TimePoint start,
+                                   janus::common::ProcessingStamp policyStamp)
+{
+    bool blockPacket = false;
+    auto *udp = packet.getLayerOfType<pcpp::UdpLayer>();
+
+    std::span<const uint8_t> payload(udp->getLayerPayload(), udp->getLayerPayloadSize());
+    uint64_t vfStartMs = nowUnixMs();
+    auto vectorFilteringStart = std::chrono::steady_clock::now();
+
+    finalDecision.vfHits = scanUdpVf(payload);
+
+    auto vectorFilteringEnd = std::chrono::steady_clock::now();
+    uint64_t vectorFilterEndMs = nowUnixMs();
+    uint64_t vectorFilterDurationUs =
+        std::chrono::duration_cast<std::chrono::microseconds>(vectorFilteringEnd - vectorFilteringStart).count();
+
+    finalDecision.trace.push_back(makeTraceEntry(
+        janus::common::ENGINE_STAGE_VECTOR_FILTER,
+        vfStartMs,
+        vectorFilterEndMs,
+        vectorFilterDurationUs,
+        finalDecision.vfHits.empty() ? "no hits" : "vf hits found"));
+
+    if (finalDecision.vfHits.empty())
+    {
+        finalDecision.verdict = FinalVerdict::ALLOW;
+        finishPolicy("packet Approved", start, policyStamp, finalDecision);
+        return finalDecision;
+    }
+
+    const auto worst = worstActionForHits(finalDecision.vfHits, RuleHelper::RuleMeta::Proto::UDP);
+    finalDecision.flagged = (worst != RuleHelper::RuleMeta::Action::ALLOW);
+
+    finalDecision.inspected = true;
+    std::string data(reinterpret_cast<const char *>(payload.data()), payload.size());
+    blockPacket = udpHasAhoHits(finalDecision, payload, policyStamp, data);
+    if (!blockPacket)
+    {
+        scanRegexUDP(blockPacket, finalDecision, policyStamp, data);
+    }
+    if (blockPacket && worst == RuleHelper::RuleMeta::Action::BLOCK)
+        finalDecision.verdict = FinalVerdict::DROP;
+    else
+        finalDecision.verdict = FinalVerdict::ALLOW;
+
+    finishPolicy(finalDecision.verdict == FinalVerdict::DROP ? "packet Denied" : "packet Approved",
+                 start, policyStamp, finalDecision);
+    return finalDecision;
+}
 
 Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
 {
-    reloadRulesIfChanged();
+
     janus::common::ProcessingStamp policyStamp;
     policyStamp.set_stage(janus::common::ENGINE_STAGE_POLICY);
     auto start = std::chrono::steady_clock::now();
     policyStamp.set_started_unix_ms(nowUnixMs());
-    Decision d{};
-    auto finishPolicy = [&](const std::string &status)
-    {
-        auto end = std::chrono::steady_clock::now();
-        uint64_t durationUs =
-            std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-        policyStamp.set_finished_unix_ms(nowUnixMs());
-        policyStamp.set_duration_us(durationUs);
-        policyStamp.set_status(status);
-        d.trace.push_back(policyStamp);
-    };
+    Decision finalDecision{};
+
     if (BlacklistHandler::isIPBlacklisted(packet) ||
         BlacklistHandler::isPortBlacklisted(packet) ||
         !BlacklistHandler::isProtocolAllowed(packet))
     {
-        d.verdict = FinalVerdict::DROP;
-        finishPolicy("packet denied by blacklist/policy");
-        return d;
+        finalDecision.verdict = FinalVerdict::DROP;
+        finishPolicy("packet denied by blacklist/policy", start, policyStamp, finalDecision);
+        return finalDecision;
     }
 
     auto proto = PcapParser::getTransportProtocol(packet);
 
     if (proto == pcpp::TCP)
     {
-        auto res = tcpHandler.processPacket(const_cast<pcpp::Packet &>(packet));
-
-        d.vfHits = res.vfRuleIds;
-        d.ahoInfo = res.ahoInfo;
-        d.trace.insert(d.trace.end(), res.trace.begin(), res.trace.end());
-        const auto worst = worstActionForHits(d.vfHits, IcdRuleMeta::Proto::TCP);
-
-        if (!res.vfHit)
-        {
-            d.verdict = FinalVerdict::ALLOW;
-            finishPolicy("packet Approved");
-            return d;
-        }
-
-        d.flagged = (worst != IcdRuleMeta::Action::ALLOW);
-
-        d.inspected = true;
-
-        if (res.ahoHit && worst == IcdRuleMeta::Action::BLOCK)
-        {
-            d.verdict = FinalVerdict::DROP;
-            finishPolicy("packet Denied");
-            return d;
-        }
-
-        d.verdict = FinalVerdict::ALLOW;
-        if (!d.vfHits.empty())
-        {
-            const int rid = d.vfHits[0];
-            auto it = metaByRuleId.find(rid);
-            if (it != metaByRuleId.end())
-            {
-                const auto &m = it->second;
-                std::println("VF hit: rid={} id={} action={} flagged={} inspected={} verdict={}",
-                             rid, m.id, actionName(m.action),
-                             d.flagged ? 1 : 0,
-                             d.inspected ? 1 : 0,
-                             (d.verdict == FinalVerdict::DROP ? "DROP" : "ALLOW"));
-            }
-            else
-            {
-                std::println("VF hit: rid={} (no-meta) hits={} flagged={} inspected={} verdict={}",
-                             rid, (int)d.vfHits.size(),
-                             d.flagged ? 1 : 0,
-                             d.inspected ? 1 : 0,
-                             (d.verdict == FinalVerdict::DROP ? "DROP" : "ALLOW"));
-            }
-        }
-        if (!d.ahoInfo.empty())
-        {
-
-            std::println("AHO hit: {}", d.ahoInfo);
-        }
-        finishPolicy(d.verdict == FinalVerdict::DROP ? "packet Denied" : "packet Approved");
-        return d;
+        return evaluateTCP(packet, finalDecision, start, policyStamp);
     }
 
     if (proto == pcpp::UDP)
     {
-        auto *udp = packet.getLayerOfType<pcpp::UdpLayer>();
-        if (!udp)
-        {
-            d.verdict = FinalVerdict::ALLOW;
-            finishPolicy("packet Approved");
-            return d;
-        }
-
-        std::span<const uint8_t> pl(udp->getLayerPayload(), udp->getLayerPayloadSize());
-        uint64_t vfStartMs = nowUnixMs();
-        auto vfStart = std::chrono::steady_clock::now();
-
-        d.vfHits = scanUdpVf(pl);
-
-        auto vfEnd = std::chrono::steady_clock::now();
-        uint64_t vfEndMs = nowUnixMs();
-        uint64_t vfDurationUs =
-            std::chrono::duration_cast<std::chrono::microseconds>(vfEnd - vfStart).count();
-
-        d.trace.push_back(makeTraceEntry(
-            janus::common::ENGINE_STAGE_VECTOR_FILTER,
-            vfStartMs,
-            vfEndMs,
-            vfDurationUs,
-            d.vfHits.empty() ? "no hits" : "vf hits found"));
-
-        if (d.vfHits.empty())
-        {
-            d.verdict = FinalVerdict::ALLOW;
-            finishPolicy("packet Approved");
-            return d;
-        }
-
-        const auto worst = worstActionForHits(d.vfHits, IcdRuleMeta::Proto::UDP);
-        d.flagged = (worst != IcdRuleMeta::Action::ALLOW);
-
-        d.inspected = true;
-        std::string data(reinterpret_cast<const char *>(pl.data()), pl.size());
-        bool confirmedHit = false;
-
-        uint64_t ahoStartMs = nowUnixMs();
-        auto ahoStart = std::chrono::steady_clock::now();
-
-        auto ahoRes = ahoCorasick.search(data);
-
-        auto ahoEnd = std::chrono::steady_clock::now();
-        uint64_t ahoEndMs = nowUnixMs();
-        uint64_t ahoDurationUs =
-            std::chrono::duration_cast<std::chrono::microseconds>(ahoEnd - ahoStart).count();
-
-        d.trace.push_back(makeTraceEntry(
-            janus::common::ENGINE_STAGE_AHO,
-            ahoStartMs,
-            ahoEndMs,
-            ahoDurationUs,
-            ahoRes.has_value() ? "aho hit" : "no aho hit"));
-        if (ahoRes.has_value())
-        {
-            confirmedHit = true;
-            policyStamp.set_status("packet Denied Aho Corasick");
-            d.ahoInfo = ahoRes.value();
-        }
-        uint64_t regexStartMs = 0;
-        uint64_t regexEndMs = 0;
-        uint64_t regexDurationUs = 0;
-        bool regexRan = false;
-        bool regexHit = false;
-        if (!confirmedHit)
-        {
-
-            auto regexStart = std::chrono::steady_clock::now();
-            regexStartMs = nowUnixMs();
-            regexRan = true;
-
-            for (int rid : d.vfHits)
-            {
-                auto it = metaByRuleId.find(rid);
-                if (it != metaByRuleId.end())
-                {
-                    if (!it->second.regex_pattern.empty())
-                    {
-                        if (regexEngine.matchRule(rid, data))
-                        {
-                            confirmedHit = true;
-                            regexHit = true;
-                            policyStamp.set_status("packet Denied REGEX");
-                            d.ahoInfo = "Regex Hit [Rule " + std::to_string(rid) + "]: " + it->second.desc;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            auto regexEnd = std::chrono::steady_clock::now();
-            regexEndMs = nowUnixMs();
-            regexDurationUs =
-                std::chrono::duration_cast<std::chrono::microseconds>(regexEnd - regexStart).count();
-        }
-        if (regexRan)
-        {
-            d.trace.push_back(makeTraceEntry(
-                janus::common::ENGINE_STAGE_REGEX,
-                regexStartMs,
-                regexEndMs,
-                regexDurationUs,
-                regexHit ? "regex hit" : "no regex hit"));
-        }
-        if (confirmedHit && worst == IcdRuleMeta::Action::BLOCK)
-            d.verdict = FinalVerdict::DROP;
-        else
-            d.verdict = FinalVerdict::ALLOW;
-
-        if (!d.vfHits.empty())
-        {
-            const int rid = d.vfHits[0];
-            auto it = metaByRuleId.find(rid);
-            if (it != metaByRuleId.end())
-            {
-                const auto &m = it->second;
-                std::println("VF hit: rid={} id={} action={} flagged={} inspected={} verdict={}",
-                             rid, m.id, actionName(m.action),
-                             d.flagged ? 1 : 0,
-                             d.inspected ? 1 : 0,
-                             (d.verdict == FinalVerdict::DROP ? "DROP" : "ALLOW"));
-            }
-            else
-            {
-                std::println("VF hit: rid={} (no-meta) hits={} flagged={} inspected={} verdict={}",
-                             rid, (int)d.vfHits.size(),
-                             d.flagged ? 1 : 0,
-                             d.inspected ? 1 : 0,
-                             (d.verdict == FinalVerdict::DROP ? "DROP" : "ALLOW"));
-            }
-        }
-        if (!d.ahoInfo.empty())
-        {
-
-            std::println("AHO hit: {}", d.ahoInfo);
-        }
-        finishPolicy(d.verdict == FinalVerdict::DROP ? "packet Denied" : "packet Approved");
-        return d;
+        return evaluateUDP(packet, finalDecision, start, policyStamp);
     }
 
-    d.verdict = FinalVerdict::ALLOW;
+    finalDecision.verdict = FinalVerdict::ALLOW;
 
-    finishPolicy("packet Approved");
-    return d;
+    finishPolicy("packet Approved", start, policyStamp, finalDecision);
+    return finalDecision;
 }

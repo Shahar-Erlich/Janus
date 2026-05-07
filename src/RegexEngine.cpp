@@ -3,15 +3,15 @@
 
 void RegexEngine::addRule(int id, const std::string &pattern, const std::string &desc)
 {
-    auto re = std::make_unique<re2::RE2>(pattern, re2::RE2::Latin1);
+    auto regex = std::make_unique<re2::RE2>(pattern, re2::RE2::Latin1);
 
-    if (!re->ok())
+    if (!regex->ok())
     {
-        Logger::error("RE2 Compilation failed for [" + pattern + "]: " + re->error());
+        Logger::error("RE2 Compilation failed for [" + pattern + "]: " + regex->error());
         return;
     }
 
-    m_rules.push_back({id, std::move(re), desc});
+    m_rules.push_back({id, std::move(regex), desc});
 }
 
 std::optional<int> RegexEngine::scan(const std::string &text) const

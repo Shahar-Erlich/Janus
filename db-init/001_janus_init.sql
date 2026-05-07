@@ -1,10 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS janus;
 SET search_path TO janus, public;
 
--- =========================
--- Rule metadata catalog
--- One row per rule definition from ICD / management layer
--- =========================
+
 CREATE TABLE IF NOT EXISTS rule_catalog (
     rule_id        INTEGER PRIMARY KEY,
     rule_name      TEXT NOT NULL,
@@ -18,10 +15,7 @@ CREATE TABLE IF NOT EXISTS rule_catalog (
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- =========================
--- Main packet decision event table
--- One row per PacketDecisionEvent
--- =========================
+
 CREATE TABLE IF NOT EXISTS packet_events (
     id                       BIGSERIAL PRIMARY KEY,
     ingested_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -65,10 +59,7 @@ CREATE INDEX IF NOT EXISTS ix_packet_events_src_ip_ts
 CREATE INDEX IF NOT EXISTS ix_packet_events_dst_ip_ts
     ON packet_events (dst_ip, ts_unix_ms DESC);
 
--- =========================
--- Processing trace table
--- One row per ProcessingStamp inside processing_trace[]
--- =========================
+
 CREATE TABLE IF NOT EXISTS packet_processing_traces (
     id               BIGSERIAL PRIMARY KEY,
     event_id         BIGINT NOT NULL REFERENCES packet_events(id) ON DELETE CASCADE,
@@ -87,11 +78,7 @@ CREATE INDEX IF NOT EXISTS ix_packet_processing_traces_event
 CREATE INDEX IF NOT EXISTS ix_packet_processing_traces_stage_time
     ON packet_processing_traces (stage, started_unix_ms DESC);
 
--- =========================
--- Rule hits per packet
--- One row per rule_id hit inside rule_hits[]
--- Metadata comes from rule_catalog
--- =========================
+
 CREATE TABLE IF NOT EXISTS packet_rule_hits (
     id        BIGSERIAL PRIMARY KEY,
     event_id  BIGINT NOT NULL REFERENCES packet_events(id) ON DELETE CASCADE,
@@ -106,9 +93,7 @@ CREATE INDEX IF NOT EXISTS ix_packet_rule_hits_event
 CREATE INDEX IF NOT EXISTS ix_packet_rule_hits_rule_id
     ON packet_rule_hits (rule_id);
 
--- =========================
--- Frontend packet/details view
--- =========================
+
 CREATE OR REPLACE VIEW v_front_packets AS
 SELECT
     e.id,
@@ -202,9 +187,7 @@ SELECT *
 FROM v_front_packets
 ORDER BY event_time DESC, id DESC;
 
--- =========================
--- Dashboard views
--- =========================
+
 
 CREATE OR REPLACE VIEW v_dashboard_overview_last_hour AS
 SELECT
@@ -240,13 +223,60 @@ ORDER BY total_packets DESC, protocol;
 CREATE OR REPLACE VIEW v_dashboard_stage_latency_last_hour AS
 SELECT
     stage,
-    COUNT(*) AS samples,
-    COALESCE(ROUND(AVG(duration_us)::numeric, 2), 0) AS avg_duration_us,
-    MAX(duration_us) AS max_duration_us
-FROM packet_processing_traces
-WHERE started_unix_ms >= (EXTRACT(EPOCH FROM (now() - INTERVAL '1 hour')) * 1000)::bigint
-GROUP BY stage
-ORDER BY stage;
+    samples,
+    avg_duration_us,
+    max_duration_us
+FROM (
+    WITH stage_counts AS (
+        SELECT
+            stage,
+            COUNT(*) AS samples,
+            COALESCE(ROUND(AVG(duration_us)::numeric, 2), 0) AS avg_duration_us,
+            MAX(duration_us) AS max_duration_us
+        FROM packet_processing_traces
+        WHERE started_unix_ms >= (EXTRACT(EPOCH FROM (now() - INTERVAL '1 hour')) * 1000)::bigint
+          AND stage IN (
+              'ENGINE_STAGE_VECTOR_FILTER',
+              'ENGINE_STAGE_AHO',
+              'ENGINE_STAGE_REGEX'
+          )
+        GROUP BY stage
+    )
+    SELECT
+        'ENGINE_STAGE_INSPECTABLE_PAYLOAD' AS stage,
+        COALESCE((SELECT samples FROM stage_counts WHERE stage = 'ENGINE_STAGE_VECTOR_FILTER'), 0) AS samples,
+        0::numeric AS avg_duration_us,
+        0::bigint AS max_duration_us,
+        1 AS sort_order
+
+    UNION ALL
+
+    SELECT
+        'ENGINE_STAGE_VECTOR_FILTER' AS stage,
+        COALESCE((SELECT samples FROM stage_counts WHERE stage = 'ENGINE_STAGE_VECTOR_FILTER'), 0) AS samples,
+        COALESCE((SELECT avg_duration_us FROM stage_counts WHERE stage = 'ENGINE_STAGE_VECTOR_FILTER'), 0) AS avg_duration_us,
+        COALESCE((SELECT max_duration_us FROM stage_counts WHERE stage = 'ENGINE_STAGE_VECTOR_FILTER'), 0) AS max_duration_us,
+        2 AS sort_order
+
+    UNION ALL
+
+    SELECT
+        'ENGINE_STAGE_AHO' AS stage,
+        COALESCE((SELECT samples FROM stage_counts WHERE stage = 'ENGINE_STAGE_AHO'), 0) AS samples,
+        COALESCE((SELECT avg_duration_us FROM stage_counts WHERE stage = 'ENGINE_STAGE_AHO'), 0) AS avg_duration_us,
+        COALESCE((SELECT max_duration_us FROM stage_counts WHERE stage = 'ENGINE_STAGE_AHO'), 0) AS max_duration_us,
+        3 AS sort_order
+
+    UNION ALL
+
+    SELECT
+        'ENGINE_STAGE_REGEX' AS stage,
+        COALESCE((SELECT samples FROM stage_counts WHERE stage = 'ENGINE_STAGE_REGEX'), 0) AS samples,
+        COALESCE((SELECT avg_duration_us FROM stage_counts WHERE stage = 'ENGINE_STAGE_REGEX'), 0) AS avg_duration_us,
+        COALESCE((SELECT max_duration_us FROM stage_counts WHERE stage = 'ENGINE_STAGE_REGEX'), 0) AS max_duration_us,
+        4 AS sort_order
+) s
+ORDER BY sort_order;
 
 CREATE OR REPLACE VIEW v_dashboard_top_source_ips_last_hour AS
 SELECT

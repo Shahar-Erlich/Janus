@@ -239,8 +239,8 @@ void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpDa
                     self->currentScan->ahoInfo = result.value();
                 }
 
-                std::println("=== AHO HIT SESSION {} ===", state.sessionId);
-                std::println("{}", result.value());
+                // std::println("=== AHO HIT SESSION {} ===", state.sessionId);
+                // std::println("{}", result.value());
             }
 
             // 2) Regex fallback

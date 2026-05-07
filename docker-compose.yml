@@ -11,6 +11,11 @@ services:
         ipv4_address: 192.168.0.254
       server_network:
         ipv4_address: 172.16.0.20
+    environment:
+        BENCHMARK_MODE: "0"
+        BENCHMARK_SKIP_HANDLER: "0"
+        BENCHMARK_PRINT_INTERVAL_MS: "1000"
+        JANUS_WORKERS: "4"
     command: ./build/janus
     cap_add:
       - NET_ADMIN
@@ -161,7 +166,67 @@ services:
     #     - data:/data
     #     - /var/run/docker.sock:/var/run/docker.sock
     #   restart: unless-stopped
+  trusted_bench:
+    build: .
+    container_name: trusted_bench
+    profiles: ["bench"]
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route del default &&
+             ip route add default via 192.168.1.254 &&
+             python3 -u /app/trusted_bench.py"
+    environment:
+      PORT_BASE: "8080"
+      PORT_COUNT: "64"
+    networks:
+      trusted_network:
+        ipv4_address: 192.168.1.30
+    depends_on:
+      janus_core:
+        condition: service_healthy
 
+  bench_sender:
+    build: .
+    profiles: ["bench"]
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "ip route del default &&
+             ip route add default via 192.168.0.254 &&
+             ./build/bench_mix_sender"
+    environment:
+      DEST_IP: "192.168.1.30"
+      PORT_BASE: "8080"
+      THREADS: "8"
+      TCP_CONNECTIONS_PER_THREAD: "128"
+      UDP_SOCKETS_PER_THREAD: "64"
+
+      DURATION_SEC: "60"
+      PORT_COUNT: "64"
+      PAYLOAD_SIZE: "700"
+      FRAG_PARTS: "4"
+      PAUSE_US: "0"
+
+      TCP_NODELAY: "1"
+      SNDBUF_BYTES: "1048576"
+
+      W_TCP_SAFE: "22"
+      W_TCP_FLAG: "18"
+      W_TCP_BLOCK: "20"
+      W_UDP_SAFE: "10"
+      W_UDP_FLAG: "12"
+      W_UDP_BLOCK: "8"
+      W_FRAG_SAFE: "5"
+      W_FRAG_FLAG: "3"
+      W_FRAG_BLOCK: "2"
+    networks:
+      untrusted_network: {}
+    depends_on:
+      janus_core:
+        condition: service_healthy
+      trusted_bench:
+        condition: service_started
 networks:
   untrusted_network:
     driver: bridge

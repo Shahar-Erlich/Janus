@@ -100,17 +100,17 @@ target_link_libraries(aho_corasick
 )
 
 # -----------------------------
-# ICD Loader
+# Rule Loader
 # -----------------------------
-add_library(icd_loader STATIC
-    ${JANUS_SRC_DIR}/IcdLoader.cpp
+add_library(rule_loader STATIC
+    ${JANUS_SRC_DIR}/RuleLoader.cpp
 )
 
-target_include_directories(icd_loader
+target_include_directories(rule_loader
     PUBLIC ${JANUS_INCLUDE_DIR}
 )
 
-target_link_libraries(icd_loader
+target_link_libraries(rule_loader
     PUBLIC janus_logger
 )
 
@@ -152,7 +152,6 @@ target_include_directories(packet
 
 target_link_libraries(packet
     PUBLIC
-        janus_logger
         tcp_handler
         vector_filter
         Pcap++
@@ -198,8 +197,16 @@ target_link_libraries(policy_handler
         vector_filter
         regex_engine
         aho_corasick
-        icd_loader
+        rule_loader
 )
+add_library(rule_helper STATIC
+    ${JANUS_SRC_DIR}/RuleHelper.cpp
+)
+
+target_include_directories(rule_helper
+    PUBLIC ${JANUS_INCLUDE_DIR}
+)
+
 
 # -----------------------------
 # Core
@@ -228,7 +235,7 @@ target_link_libraries(janus_core
         blacklist_handler
         vector_filter
         aho_corasick
-        icd_loader
+        rule_loader
         regex_engine
         mnl
         netfilter_queue
@@ -309,4 +316,24 @@ target_link_libraries(janus
         tcp_handler
         regex_engine
         janus_proto
+)
+
+
+
+# -----------------------------
+# bench_mix_sender
+# -----------------------------
+add_executable(bench_mix_sender
+    ${PROJECT_SOURCE_DIR}/bench_mix_sender.cpp
+)
+
+target_compile_features(bench_mix_sender PUBLIC cxx_std_20)
+
+target_include_directories(bench_mix_sender
+    PRIVATE ${JANUS_INCLUDE_DIR}
+)
+
+target_link_libraries(bench_mix_sender
+    PUBLIC
+        janus_logger
 )

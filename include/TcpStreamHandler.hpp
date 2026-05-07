@@ -10,7 +10,7 @@
 #include "AhoCorasick.hpp"
 #include "VectorFilteringEngine.hpp"
 #include "RegexEngine.hpp"
-#include "IcdLoader.hpp"
+#include "RuleLoader.hpp"
 #include "janus_common.pb.h"
 #include "janus_packet.pb.h"
 struct ConnectionState
@@ -36,13 +36,34 @@ struct TcpPacketScanResult
 class TcpStreamHandler
 {
 public:
+    /**
+     * @brief Construct a new Tcp Stream Handler object
+     *
+     * @param ac ahocorasick engine
+     * @param ve vector filtering engine
+     * @param re regex engine
+     */
     TcpStreamHandler(AhoCorasick &ac, VectorFilteringEngine &ve, RegexEngine &re);
     TcpStreamHandler(const TcpStreamHandler &) = delete;
     TcpStreamHandler &operator=(const TcpStreamHandler &) = delete;
 
-    // מחזיר תוצאה פר פאקטה (סינכרוני מבחינת PacketPolicy)
+    /**
+     * @brief process packet, add it to the correct session's buffer and scan it
+     *
+     * @param packet packet to process and scan
+     * @return TcpPacketScanResult the results of the DPI scans
+     */
     TcpPacketScanResult processPacket(pcpp::Packet &packet);
-    void setRuleMeta(const std::unordered_map<int, IcdRuleMeta> *meta) { m_metaMap = meta; }
+    /**
+     * @brief Set a rule meta id in the metadata map
+     *
+     * @param meta metadata of a rule
+     */
+    void setRuleMeta(std::unordered_map<int, RuleHelper::RuleHelper::RuleMeta> *meta) { m_metaMap = meta; }
+    /**
+     * @brief shutdown the TCP state machine
+     *
+     */
     void shutdown();
 
 private:
@@ -50,8 +71,28 @@ private:
     static constexpr std::size_t MAX_STREAM_KEEP = 4096;
     static constexpr std::size_t AHO_TAIL = 64;
 
+    /**
+     * @brief callback to call when a TCP connection starts
+     *
+     * @param connectionData new connection established
+     * @param userCookie the unique user identifier
+     */
     static void onConnectionStart(const pcpp::ConnectionData &connectionData, void *userCookie);
+    /**
+     * @brief callback to call when data is entered to the connection
+     *
+     * @param side which side sent the data
+     * @param tcpData the data
+     * @param userCookie the unique use ID
+     */
     static void onDataReady(int8_t side, const pcpp::TcpStreamData &tcpData, void *userCookie);
+    /**
+     * @brief callback to call when TCP connection ends
+     *
+     * @param connData the connection data
+     * @param reason the reason for closing (error/shutdown etc...)
+     * @param userCookie the unique user ID
+     */
     static void onConnectionEnd(const pcpp::ConnectionData &connData,
                                 pcpp::TcpReassembly::ConnectionEndReason reason,
                                 void *userCookie);
@@ -60,7 +101,7 @@ private:
     pcpp::TcpReassembly reassembly;
     std::unordered_map<uint32_t, ConnectionState> connections;
     std::mutex mutex;
-    const std::unordered_map<int, IcdRuleMeta> *m_metaMap = nullptr;
+    std::unordered_map<int, RuleHelper::RuleHelper::RuleMeta> *m_metaMap = nullptr;
     AhoCorasick &ahoCorasick;
     VectorFilteringEngine &vectorEngine;
     RegexEngine &regexEngine;

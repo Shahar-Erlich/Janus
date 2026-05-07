@@ -19,6 +19,10 @@ class TcpSessionTracker
 {
 
 public:
+    /**
+     * @brief Construct a new Tcp Session Tracker object
+     *
+     */
     TcpSessionTracker();
     typedef struct
     {
@@ -27,12 +31,43 @@ public:
         TCP_STATE state;
         pcpp::ConnectionData sessionData;
     } TcpConnection;
-
+    /**
+     * @brief add TCP session to track
+     *
+     * @param session session to add
+     * @param socket socket of the connected session
+     * @return true if session added
+     * @return false if session adding failed
+     */
     bool addSession(const pcpp::ConnectionData &session, int socket);
     bool addSession(const pcpp::ConnectionData &session);
+    /**
+     * @brief remove session from system
+     *
+     * @param session session to remove
+     * @return true if removed
+     * @return false if removing failed
+     */
     bool removeSession(const pcpp::ConnectionData &session);
+    /**
+     * @brief check if session exists in tracker
+     *
+     * @param session session to check
+     * @return true if session exists
+     * @return false if session doesnt exist
+     */
     bool sessionExists(const pcpp::ConnectionData &session);
+    /**
+     * @brief print the session table in the tracker
+     *
+     */
     void printSessionTable();
+    /**
+     * @brief get session by id (unique flowkey)
+     *
+     * @param flowKey unique session id
+     * @return TcpConnection the connection struct
+     */
     TcpConnection getSession(uint32_t flowKey);
 
 private:

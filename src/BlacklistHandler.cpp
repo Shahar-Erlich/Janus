@@ -1,8 +1,9 @@
-#include "../include/BlacklistHandler.hpp"
+#include "BlacklistHandler.hpp"
 #include <iostream>
 #include <fstream>
-#include "../include/Logger.hpp"
-#include "../include/PcapParser.hpp"
+#include "Logger.hpp"
+#include "PcapParser.hpp"
+#include <mutex>
 
 std::unordered_set<uint32_t> BlacklistHandler::m_ipBlacklist{};
 std::unordered_set<uint32_t> BlacklistHandler::m_portBlacklist{};
@@ -56,7 +57,6 @@ void BlacklistHandler::initializePortList()
 
 void BlacklistHandler::addToIPBlacklist(const std::string &ip)
 {
-    // Logger::log("Adding " + ip + " to blacklist");
     in_addr addr{};
     if (inet_pton(AF_INET, ip.c_str(), &addr) != 1)
     {
@@ -79,7 +79,6 @@ void BlacklistHandler::addToIPBlacklist(const std::string &ip)
     char buf[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &addr, buf, sizeof(buf));
     ipBlacklistFile << buf << '\n';
-    // Logger::log("Added " + ip + " to blacklist file");
 }
 
 void BlacklistHandler::addToPortBlacklist(const std::string &port)
