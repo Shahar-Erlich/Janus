@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <stdexcept>
 static std::uint32_t stringHash(const std::string &s)
 {
     std::uint32_t h = 0;
@@ -42,6 +43,38 @@ static std::string bytesToHex(const std::array<std::uint8_t, 4> &bytes, int leng
 
     return out;
 }
+std::vector<std::uint8_t> RuleHelper::hexToBytes(const std::string &hex)
+{
+    if (hex.size() % 2 != 0)
+        throw std::runtime_error("hex string must have even length");
+
+    auto nyb = [](char c) -> int
+    {
+        if (c >= '0' && c <= '9')
+            return c - '0';
+        if (c >= 'a' && c <= 'f')
+            return 10 + (c - 'a');
+        if (c >= 'A' && c <= 'F')
+            return 10 + (c - 'A');
+        return -1;
+    };
+
+    std::vector<std::uint8_t> out;
+    out.reserve(hex.size() / 2);
+
+    for (std::size_t i = 0; i < hex.size(); i += 2)
+    {
+        int hi = nyb(hex[i]);
+        int lo = nyb(hex[i + 1]);
+
+        if (hi < 0 || lo < 0)
+            throw std::runtime_error("invalid hex");
+
+        out.push_back(static_cast<std::uint8_t>((hi << 4) | lo));
+    }
+
+    return out;
+}
 int RuleHelper::idToRuleID(
     std::string id,
     std::string protoStr,
@@ -55,7 +88,7 @@ int RuleHelper::idToRuleID(
 
     return static_cast<int>(stringHash(key) & 0x7fffffff);
 }
-int RuleHelper::idToRuleID(const RuleMeta &rule)
+int RuleHelper::idToRuleID(RuleMeta &rule)
 {
     return idToRuleID(
         rule.id,

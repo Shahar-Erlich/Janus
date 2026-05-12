@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 
 #include <pcapplusplus/Packet.h>
 
@@ -57,6 +58,7 @@ public:
      * @return Decision if the packet should be allowed/dropped, also returns the stamps from each engine
      */
     Decision evaluate(const pcpp::Packet &packet);
+    bool addRule(const RuleHelper::RuleMeta &meta);
 
 private:
     /**
@@ -107,6 +109,6 @@ private:
     RegexEngine regexEngine;
     VectorFilteringEngine vectorEngine;
     std::unordered_map<int, RuleHelper::RuleMeta> metaByRuleId;
-
+    mutable std::mutex policyMutex;
     TcpStreamHandler tcpHandler;
 };

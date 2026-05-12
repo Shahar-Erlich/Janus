@@ -14,6 +14,7 @@
 
 #define HANDLER_IP "172.16.0.30"
 #define HANDLER_PORT 50051
+#define LISTEN_PORT 50052
 
 class SystemEventSender
 {
@@ -39,7 +40,9 @@ public:
 
 private:
     std::thread senderThread;
+    std::thread receiverThread;
     int senderSocket{-1};
+    int receiverSocket{-1};
     std::deque<janus::packet::PacketDecisionEvent> eventQueue;
     std::mutex queueMutex;
     std::condition_variable queueCv;
@@ -50,11 +53,13 @@ private:
      *
      * waits for events to appear in the queue and forwards them to the system handler
      */
-    void threadRun();
+    void threadSendRun();
+    void threadReceiveRun();
     /**
      * @brief establish a TCP connection to the external system handler
      */
-    void connectToHandler();
+    void connectSendToHandler();
+    void openReceiverSocket();
     /**
      * @brief serialize and send an event to the system handler
      *

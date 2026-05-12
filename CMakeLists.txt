@@ -37,6 +37,30 @@ target_link_libraries(janus_proto
     PUBLIC
         protobuf::libprotobuf
 )
+add_library(rule_helper STATIC
+    ${JANUS_SRC_DIR}/RuleHelper.cpp
+)
+
+target_include_directories(rule_helper
+    PUBLIC ${JANUS_INCLUDE_DIR}
+)
+
+# -----------------------------
+# Rule Loader
+# -----------------------------
+add_library(rule_loader STATIC
+    ${JANUS_SRC_DIR}/RuleLoader.cpp
+)
+
+target_include_directories(rule_loader
+    PUBLIC ${JANUS_INCLUDE_DIR}
+)
+
+target_link_libraries(rule_loader
+    PUBLIC janus_logger
+        rule_helper)
+
+
 # -----------------------------
 # Vector Filtering Engine
 # -----------------------------
@@ -60,6 +84,8 @@ target_link_libraries(vector_filter
         Packet++
         Common++
         pcap
+        rule_loader
+        rule_helper
 )
 
 # -----------------------------
@@ -99,20 +125,6 @@ target_link_libraries(aho_corasick
     PUBLIC janus_logger
 )
 
-# -----------------------------
-# Rule Loader
-# -----------------------------
-add_library(rule_loader STATIC
-    ${JANUS_SRC_DIR}/RuleLoader.cpp
-)
-
-target_include_directories(rule_loader
-    PUBLIC ${JANUS_INCLUDE_DIR}
-)
-
-target_link_libraries(rule_loader
-    PUBLIC janus_logger
-)
 
 # -----------------------------
 # TCP handler
@@ -198,13 +210,6 @@ target_link_libraries(policy_handler
         regex_engine
         aho_corasick
         rule_loader
-)
-add_library(rule_helper STATIC
-    ${JANUS_SRC_DIR}/RuleHelper.cpp
-)
-
-target_include_directories(rule_helper
-    PUBLIC ${JANUS_INCLUDE_DIR}
 )
 
 
@@ -337,3 +342,5 @@ target_link_libraries(bench_mix_sender
     PUBLIC
         janus_logger
 )
+
+#### 64,groups before, add blacklist to web,research more filtering fields in header

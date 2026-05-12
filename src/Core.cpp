@@ -134,6 +134,10 @@ void finishDecisionStamp(Decision &decision,
         hit->set_rule_id(rid);
     }
 }
+bool Core::addRule(const RuleHelper::RuleMeta &meta)
+{
+    return packetPolicy && packetPolicy->addRule(meta);
+}
 void Core::handlePacket(const nlmsghdr *netLinkHeader)
 {
     janus::packet::PacketDecisionEvent packetDecision;

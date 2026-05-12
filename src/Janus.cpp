@@ -29,6 +29,26 @@ void Janus::createWorkerThreads()
         workerThreads.emplace_back(std::make_unique<WorkerThread>(i));
     }
 }
+bool Janus::addRuleToAllWorkers(const RuleHelper::RuleMeta &meta)
+{
+    bool ok = true;
+
+    for (auto &worker : workerThreads)
+    {
+        if (!worker || !worker->workerCore)
+        {
+            ok = false;
+            continue;
+        }
+
+        if (!worker->workerCore->addRule(meta))
+        {
+            ok = false;
+        }
+    }
+
+    return ok;
+}
 void Janus::init()
 {
     std::ifstream f("/app/dpi_rules.txt");

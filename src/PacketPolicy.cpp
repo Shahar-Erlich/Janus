@@ -16,7 +16,7 @@ PacketPolicy::PacketPolicy(AhoCorasick &ac)
       regexEngine(),
       tcpHandler(ac, vectorEngine, regexEngine)
 {
-    auto loaded = RuleLoader::loadFromFile("/app/icd.json");
+    auto loaded = RuleLoader::loadFromFile("/app/rules.json");
     vectorEngine.build(loaded.rules);
 
     for (const auto &[rid, meta] : loaded.metaByRuleId)
@@ -56,7 +56,29 @@ static const char *actionName(RuleHelper::RuleMeta::Action a)
         return "?";
     }
 }
+bool PacketPolicy::addRule(const RuleHelper::RuleMeta &meta)
+{
+    std::lock_guard<std::mutex> lock(policyMutex);
 
+    VFRule rule{};
+    rule.ruleId = meta.ruleId;
+    rule.offset = static_cast<std::size_t>(meta.exact_offset);
+    rule.length = static_cast<std::uint8_t>(meta.length);
+    rule.bytes = meta.bytes;
+    rule.description = meta.desc.empty() ? meta.id : meta.desc;
+
+    if (!vectorEngine.addRuleToVectorEngine(rule))
+        return false;
+
+    metaByRuleId[rule.ruleId] = meta;
+
+    if (!meta.regex_pattern.empty() && !regexEngine.hasRule(rule.ruleId))
+    {
+        regexEngine.addRule(rule.ruleId, meta.regex_pattern, meta.desc);
+    }
+
+    return true;
+}
 RuleHelper::RuleMeta::Action PacketPolicy::worstActionForHits(const std::vector<int> &hits, RuleHelper::RuleMeta::Proto pktProto) const
 {
     RuleHelper::RuleMeta::Action worst = RuleHelper::RuleMeta::Action::ALLOW;
@@ -309,7 +331,7 @@ Decision PacketPolicy::evaluateUDP(const pcpp::Packet &packet,
 
 Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
 {
-
+    std::lock_guard<std::mutex> lock(policyMutex);
     janus::common::ProcessingStamp policyStamp;
     policyStamp.set_stage(janus::common::ENGINE_STAGE_POLICY);
     auto start = std::chrono::steady_clock::now();

@@ -19,6 +19,7 @@ from .settings import settings
 from .state import AppState
 from .writer import writer_loop
 from .ws_api import router as ws_router
+from .wire import pack_frame, read_framed_message
 
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
@@ -53,8 +54,10 @@ def _read_icd() -> dict[str, Any]:
     data.setdefault("vf_rules", [])
     return data
 
-def _write_icd_atomic(data: dict[str, Any]) -> None:
+def _write_rule_json_atomic(data: dict[str, Any]) -> None:
     path = Path(settings.icd_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
     payload = json.dumps(data, indent=4, ensure_ascii=False) + "\n"
 
     with open(path, "w", encoding="utf-8") as f:
@@ -188,7 +191,69 @@ async def healthz() -> dict[str, object]:
 async def list_rules() -> dict[str, Any]:
     return _read_icd()
 
+async def _send_rule_to_cpp(rule: dict[str, Any]) -> dict[str, Any]:
+    command = {
+        "type": "ADD_RULE",
+        "rule": rule,
+    }
 
+    payload = json.dumps(command, ensure_ascii=False).encode("utf-8")
+
+    if len(payload) > settings.core_control_max_frame_bytes:
+        raise HTTPException(status_code=400, detail="rule command is too large")
+
+    writer: asyncio.StreamWriter | None = None
+
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(
+                settings.core_control_host,
+                settings.core_control_port,
+            ),
+            timeout=settings.core_control_timeout_sec,
+        )
+
+        writer.write(pack_frame(payload))
+        await asyncio.wait_for(
+            writer.drain(),
+            timeout=settings.core_control_timeout_sec,
+        )
+
+        response_payload = await asyncio.wait_for(
+            read_framed_message(
+                reader,
+                max_frame_bytes=settings.core_control_max_frame_bytes,
+            ),
+            timeout=settings.core_control_timeout_sec,
+        )
+
+        response = json.loads(response_payload.decode("utf-8"))
+
+        if not response.get("ok", False):
+            raise HTTPException(
+                status_code=502,
+                detail=response.get("error", "Janus Core rejected rule"),
+            )
+
+        return response
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        logger.exception("failed to send rule to Janus Core")
+        raise HTTPException(
+            status_code=502,
+            detail=f"failed to send rule to Janus Core: {exc}",
+        )
+
+    finally:
+        if writer is not None:
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
 @app.post("/rules")
 async def create_rule(payload: RuleCreateRequest) -> dict[str, Any]:
     normalized = _normalize_rule(payload)
@@ -197,9 +262,19 @@ async def create_rule(payload: RuleCreateRequest) -> dict[str, Any]:
         data = _read_icd()
         rules = data.setdefault("vf_rules", [])
 
-        same_id = next((r for r in rules if str(r.get("id", "")).upper() == normalized["id"].upper()), None)
+        same_id = next(
+            (
+                r for r in rules
+                if str(r.get("id", "")).upper() == normalized["id"].upper()
+            ),
+            None,
+        )
+
         if same_id is not None:
-            raise HTTPException(status_code=409, detail=f'rule id "{normalized["id"]}" already exists')
+            raise HTTPException(
+                status_code=409,
+                detail=f'rule id "{normalized["id"]}" already exists',
+            )
 
         same_anchor = next(
             (
@@ -212,26 +287,34 @@ async def create_rule(payload: RuleCreateRequest) -> dict[str, Any]:
             ),
             None,
         )
+
         if same_anchor is not None:
-            raise HTTPException(status_code=409, detail="an identical anchor rule already exists")
+            raise HTTPException(
+                status_code=409,
+                detail="an identical anchor rule already exists",
+            )
 
+        # 1. First activate the rule inside the live C++ engine.
+        core_response = await _send_rule_to_cpp(normalized)
+
+        # 2. Only after C++ accepts it, persist it to icd.json.
         rules.append(normalized)
-        _write_icd_atomic(data)
+        _write_rule_json_atomic(data)
 
-        # sync DB catalog so names/actions in the dashboard stay correct
+        # 3. Sync DB catalog so dashboard rule names/actions stay correct.
         state: AppState = app.state.janus_state
         try:
             await state.db.ensure_rule_catalog_seeded(settings.icd_path)
         except Exception:
-            logger.exception("rule was written to icd.json but DB reseed failed")
+            logger.exception("rule was activated and written to icd.json but DB reseed failed")
 
     return {
         "ok": True,
-        "message": "rule added successfully",
+        "message": "rule added and activated successfully",
         "rule": normalized,
+        "core_response": core_response,
         "total_rules": len(rules),
     }
-
 
 if __name__ == "__main__":
     import uvicorn

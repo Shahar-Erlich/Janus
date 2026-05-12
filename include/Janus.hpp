@@ -9,6 +9,7 @@
 #include "VectorFilteringEngine.hpp"
 #include "AhoCorasick.hpp"
 #include "SystemEventSender.hpp"
+#include "RuleHelper.hpp"
 
 #define MAX_WORKER_THREAD 4
 
@@ -44,6 +45,7 @@ public:
      * @brief initialize the global AhoCorasick engine and start all worker threads
      */
     static void init();
+    static bool addRuleToAllWorkers(const RuleHelper::RuleMeta &meta);
     static AhoCorasick globalAhoCorasick;
     static SystemEventSender systemEventSender;
     static std::vector<std::unique_ptr<WorkerThread>> workerThreads;

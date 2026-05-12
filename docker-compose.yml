@@ -15,6 +15,7 @@ services:
         BENCHMARK_MODE: "0"
         BENCHMARK_SKIP_HANDLER: "0"
         BENCHMARK_PRINT_INTERVAL_MS: "1000"
+        
         JANUS_WORKERS: "4"
     command: ./build/janus
     cap_add:
@@ -35,7 +36,7 @@ services:
     volumes:
       - ./blacklists:/blacklists
       - ./dpi_rules.txt:/app/dpi_rules.txt
-      - ./icd.json:/app/icd.json
+      - ./rules.json:/app/rules.json
 
   #Untrusted 1
   untrusted_1:
@@ -44,7 +45,7 @@ services:
     cap_add:
       - NET_ADMIN
     command: >
-      sh -c "ip route del default && ip route add default via 192.168.0.254 && ./build/main"
+      sh -c "ip route del default && ip route add default via 192.168.0.254 && sleep infinity"
     volumes:
       - ./pcaps:/pcaps
     networks:
@@ -109,6 +110,10 @@ services:
       PGDATABASE: janus
       PGUSER: janus_db
       PGPASSWORD: secret
+      JANUS_CORE_CONTROL_HOST: janus_core
+      JANUS_CORE_CONTROL_PORT: 50052
+      JANUS_CORE_CONTROL_TIMEOUT_SEC: 3.0
+      JANUS_ICD_PATH: /app/rules.json
     networks:
       server_network:
         ipv4_address: 172.16.0.30
@@ -128,7 +133,7 @@ services:
       - "8000:8000"
       - "50051:50051"
     volumes:
-      - ./icd.json:/app/icd.json
+      - ./rules.json:/app/rules.json
       - ./db-init:/app/db-init
   db:
     image: postgres

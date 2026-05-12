@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
-
+#include <vector>
+#include <cstdint>
 class RuleHelper
 {
 
@@ -32,7 +33,8 @@ public:
         std::array<std::uint8_t, 4> bytes;
     } RuleMeta;
     static int idToRuleID(std::string id, std::string protoStr, int length, int offset, std::string hex);
-    static int idToRuleID(const RuleMeta &rule);
+    static int idToRuleID(RuleMeta &rule);
+    static std::vector<std::uint8_t> hexToBytes(const std::string &hex);
 
     static RuleMeta::Action parseAction(std::string action);
     static RuleMeta::Proto parseProto(std::string proto);

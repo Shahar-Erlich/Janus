@@ -872,6 +872,28 @@
             "regex": "",
             "action": "FLAG",
             "desc": "testing rule adding"
+        },
+        {
+            "id": "TEST_2",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "2F2E2635",
+            "regex": "",
+            "action": "FLAG",
+            "desc": "upgraded adding"
+        },
+        {
+            "id": "TEST_3",
+            "proto": "ANY",
+            "offset_mode": "PAYLOAD",
+            "offset": 0,
+            "length": 4,
+            "value_hex": "6F6F6F6F",
+            "regex": "",
+            "action": "BLOCK",
+            "desc": "block"
         }
     ]
 }

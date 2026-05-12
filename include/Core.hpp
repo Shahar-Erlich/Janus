@@ -29,6 +29,8 @@ class PacketPolicy;
 #include <thread>
 #include <chrono>
 #include "SystemEventSender.hpp"
+#include "RuleHelper.hpp"
+
 #define QUEUE_NUM 0
 #define WORD_BYTE 4
 
@@ -52,6 +54,7 @@ public:
      *
      */
     void init();
+    bool addRule(const RuleHelper::RuleMeta &meta);
 
 private:
     mnl_socket *m_nlSocket = nullptr;

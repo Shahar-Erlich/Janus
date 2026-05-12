@@ -21,9 +21,14 @@ class Settings:
     ws_host: str = os.getenv("JANUS_WS_HOST", "0.0.0.0")
     ws_port: int = int(os.getenv("JANUS_WS_PORT", "8000"))
 
+    core_control_host: str = os.getenv("JANUS_CORE_CONTROL_HOST", "janus_core")
+    core_control_port: int = int(os.getenv("JANUS_CORE_CONTROL_PORT", "50052"))
+    core_control_timeout_sec: float = float(os.getenv("JANUS_CORE_CONTROL_TIMEOUT_SEC", "3.0"))
+    core_control_max_frame_bytes: int = int(os.getenv("JANUS_CORE_CONTROL_MAX_FRAME_BYTES", str(64 * 1024)))
+
     ingest_queue_maxsize: int = int(os.getenv("JANUS_INGEST_QUEUE_MAXSIZE", "10000"))
     frontend_send_timeout_sec: float = float(os.getenv("JANUS_FRONTEND_SEND_TIMEOUT_SEC", "3.0"))
-    icd_path: str = os.getenv("JANUS_ICD_PATH", "/app/icd.json")
+    icd_path: str = os.getenv("JANUS_ICD_PATH", "/app/json.json")
 
     db_pool_min_size: int = int(os.getenv("JANUS_DB_POOL_MIN_SIZE", "1"))
     db_pool_max_size: int = int(os.getenv("JANUS_DB_POOL_MAX_SIZE", "8"))

@@ -11,39 +11,11 @@
 
 using json = nlohmann::json;
 
-static std::vector<std::uint8_t> hexToBytes(const std::string &hex)
-{
-    if (hex.size() % 2 != 0)
-        throw std::runtime_error("hex string must have even length");
-
-    auto nyb = [](char c) -> int
-    {
-        if (c >= '0' && c <= '9')
-            return c - '0';
-        if (c >= 'a' && c <= 'f')
-            return 10 + (c - 'a');
-        if (c >= 'A' && c <= 'F')
-            return 10 + (c - 'A');
-        return -1;
-    };
-
-    std::vector<std::uint8_t> out;
-    out.reserve(hex.size() / 2);
-    for (size_t i = 0; i < hex.size(); i += 2)
-    {
-        int hi = nyb(hex[i]), lo = nyb(hex[i + 1]);
-        if (hi < 0 || lo < 0)
-            throw std::runtime_error("invalid hex");
-        out.push_back(std::uint8_t((hi << 4) | lo));
-    }
-    return out;
-}
-
 RuleLoaded RuleLoader::loadFromFile(const std::string &path)
 {
     std::ifstream f(path);
     if (!f.is_open())
-        throw std::runtime_error("Failed to open ICD file: " + path);
+        throw std::runtime_error("Failed to open rules file: " + path);
 
     json j;
     f >> j;
@@ -72,7 +44,7 @@ RuleLoaded RuleLoader::loadFromFile(const std::string &path)
             throw std::runtime_error("VF rule length must be 1..4 (rule: " + id + ")");
 
         const std::string hex = r.at("value_hex").get<std::string>();
-        auto bytes = hexToBytes(hex);
+        auto bytes = RuleHelper::hexToBytes(hex);
         if ((int)bytes.size() != length)
             throw std::runtime_error("value_hex length mismatch (rule: " + id + ")");
 
