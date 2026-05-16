@@ -16,7 +16,7 @@ PacketPolicy::PacketPolicy(AhoCorasick &ac)
       regexEngine(),
       tcpHandler(ac, vectorEngine, regexEngine)
 {
-    auto loaded = RuleLoader::loadFromFile("/app/rules.json");
+    auto loaded = RuleLoader::loadFromFile(rulesPath);
     vectorEngine.build(loaded.rules);
 
     for (const auto &[rid, meta] : loaded.metaByRuleId)
@@ -207,9 +207,9 @@ Decision PacketPolicy::evaluateTCP(const pcpp::Packet &packet,
 }
 
 bool PacketPolicy::udpHasAhoHits(Decision &finalDecision,
-                                 std::span<const uint8_t> &payload,
+                                 std::span<const uint8_t> payload,
                                  janus::common::ProcessingStamp &policyStamp,
-                                 std::string &data)
+                                 std::string_view data)
 {
     bool confirmedHit = false;
     uint64_t ahoStartMs = nowUnixMs();
@@ -236,7 +236,7 @@ bool PacketPolicy::udpHasAhoHits(Decision &finalDecision,
 void PacketPolicy::scanRegexUDP(bool &blockPacket,
                                 Decision &finalDecision,
                                 janus::common::ProcessingStamp &policyStamp,
-                                std::string &data)
+                                std::string_view data)
 {
     uint64_t regexStartMs = 0;
     uint64_t regexEndMs = 0;
@@ -256,7 +256,7 @@ void PacketPolicy::scanRegexUDP(bool &blockPacket,
                 {
                     regexHit = true;
                     policyStamp.set_status("packet Denied REGEX");
-                    finalDecision.ahoInfo = "Regex Hit [Rule " + std::to_string(rid) + "]: " + it->second.desc;
+                    finalDecision.ahoInfo = std::format("Regex Hit [Rule {}]: {}", std::to_string(rid), it->second.desc);
                     blockPacket = true;
                     break;
                 }
@@ -277,7 +277,7 @@ void PacketPolicy::scanRegexUDP(bool &blockPacket,
 }
 
 Decision PacketPolicy::evaluateUDP(const pcpp::Packet &packet,
-                                   Decision finalDecision,
+                                   Decision &finalDecision,
                                    TimePoint start,
                                    janus::common::ProcessingStamp policyStamp)
 {
@@ -313,14 +313,17 @@ Decision PacketPolicy::evaluateUDP(const pcpp::Packet &packet,
     finalDecision.flagged = (worst != RuleHelper::RuleMeta::Action::ALLOW);
 
     finalDecision.inspected = true;
-    std::string data(reinterpret_cast<const char *>(payload.data()), payload.size());
+    std::string_view data(reinterpret_cast<const char *>(payload.data()), payload.size());
     blockPacket = udpHasAhoHits(finalDecision, payload, policyStamp, data);
     if (!blockPacket)
     {
         scanRegexUDP(blockPacket, finalDecision, policyStamp, data);
     }
     if (blockPacket && worst == RuleHelper::RuleMeta::Action::BLOCK)
+    {
         finalDecision.verdict = FinalVerdict::DROP;
+        BlacklistHandler::addToIPBlacklist(packet.getLayerOfType<pcpp::IPv4Layer>()->getSrcIPAddress().toString());
+    }
     else
         finalDecision.verdict = FinalVerdict::ALLOW;
 

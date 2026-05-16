@@ -13,6 +13,7 @@
 #include "RuleLoader.hpp"
 #include "janus_common.pb.h"
 #include "janus_packet.pb.h"
+
 struct ConnectionState
 {
     std::vector<uint8_t> clientBuffer;
@@ -106,4 +107,44 @@ private:
     VectorFilteringEngine &vectorEngine;
     RegexEngine &regexEngine;
     TcpPacketScanResult *currentScan = nullptr;
+    static std::vector<std::uint8_t> makeWindow(
+        const std::vector<std::uint8_t> &buffer,
+        const std::uint8_t *data,
+        std::size_t len,
+        std::size_t tailSize);
+
+    static void appendTrim(
+        std::vector<std::uint8_t> &buffer,
+        const std::uint8_t *data,
+        std::size_t len);
+
+    void reuseConfirmed(const ConnectionState &state);
+
+    std::vector<int> filterHits(
+        const std::vector<int> &hits,
+        bool allowExact) const;
+
+    bool runVf(
+        const std::vector<std::uint8_t> &vfWindow,
+        const std::uint8_t *data,
+        std::size_t len,
+        std::vector<int> &bestHits);
+
+    bool runAho(
+        ConnectionState &state,
+        const std::vector<int> &bestHits,
+        const std::vector<std::uint8_t> &ahoWindow);
+
+    bool runRegex(
+        ConnectionState &state,
+        const std::vector<int> &bestHits,
+        const std::vector<std::uint8_t> &vfWindow);
+
+    void inspectFlow(
+        ConnectionState &state,
+        const std::vector<std::uint8_t> &vfWindow,
+        const std::vector<std::uint8_t> &ahoWindow,
+        const std::uint8_t *data,
+        std::size_t len,
+        const std::string &senderIp);
 };

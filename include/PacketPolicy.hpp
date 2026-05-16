@@ -15,6 +15,7 @@
 #include "VectorFilteringEngine.hpp"
 
 #define MAX_BYTE_SHIFT 64
+static constexpr std::string_view rulesPath = "/app/rules.json";
 
 using TimePoint = std::chrono::steady_clock::time_point;
 
@@ -92,17 +93,17 @@ private:
                          TimePoint start,
                          janus::common::ProcessingStamp policyStamp);
     Decision evaluateUDP(const pcpp::Packet &packet,
-                         Decision finalDecision,
+                         Decision &finalDecision,
                          TimePoint start,
                          janus::common::ProcessingStamp policyStamp);
     bool udpHasAhoHits(Decision &finalDecision,
-                       std::span<const uint8_t> &payload,
+                       std::span<const uint8_t> payload,
                        janus::common::ProcessingStamp &policyStamp,
-                       std::string &data);
+                       std::string_view data);
     void scanRegexUDP(bool &blockPacket,
                       Decision &finalDecision,
                       janus::common::ProcessingStamp &policyStamp,
-                      std::string &data);
+                      std::string_view data);
 
 private:
     AhoCorasick &ahoCorasick;

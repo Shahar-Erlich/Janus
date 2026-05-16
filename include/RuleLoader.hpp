@@ -21,5 +21,5 @@ public:
      * @param path the file path to open
      * @return RuleLoaded, struct with all rules
      */
-    static RuleLoaded loadFromFile(const std::string &path);
+    static RuleLoaded loadFromFile(std::string_view path);
 };

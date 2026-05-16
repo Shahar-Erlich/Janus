@@ -98,7 +98,7 @@ void AhoCorasick::prepare()
     }
 }
 
-std::optional<std::string> AhoCorasick::search(const std::string &text)
+std::optional<std::string> AhoCorasick::search(std::string_view text)
 {
     std::unordered_map<std::string, int> match_table;
     int current_node = _root;

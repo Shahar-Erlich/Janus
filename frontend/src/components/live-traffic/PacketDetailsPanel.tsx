@@ -1,4 +1,4 @@
-import { CheckCircle2, X } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { PacketRecord } from '../../types';
 
 type PacketDetailsPanelProps = {
@@ -14,13 +14,13 @@ const pathOrder: Array<'INGRESS' | 'POLICY' | 'SPI' | 'DPI' | 'EGRESS'> = [
 ];
 
 export function PacketDetailsPanel({ packet }: PacketDetailsPanelProps) {
+  const hasProtocolHeader = packet.protocolHeaderHex.length > 0;
+  const hasPayloadPreview = packet.payloadPreview.length > 0;
+
   return (
     <aside className="packet-panel">
       <div className="packet-panel-header">
         <h3>Packet Details</h3>
-        <button className="ghost-icon-button" aria-label="Close panel">
-          <X size={16} />
-        </button>
       </div>
 
       <div className="detail-box">
@@ -40,6 +40,7 @@ export function PacketDetailsPanel({ packet }: PacketDetailsPanelProps) {
         <div className="path-row">
           {pathOrder.map((step, index) => {
             const active = packet.enginePath.includes(step);
+
             return (
               <div key={step} className="path-node-wrap">
                 <div className={`path-node ${active ? 'path-node-active' : ''}`} />
@@ -54,36 +55,36 @@ export function PacketDetailsPanel({ packet }: PacketDetailsPanelProps) {
       <div className="packet-metrics-grid">
         <div className="packet-mini-card">
           <span>Action Reason</span>
-          <strong>{packet.actionReason}</strong>
+          <strong>{packet.actionReason || 'No reason provided'}</strong>
         </div>
+
         <div className="packet-mini-card">
           <span>Total Latency</span>
           <strong>{packet.latencyMs}ms</strong>
         </div>
       </div>
 
-      <div className="detail-box">
-        <div className="detail-label">Protocol Header</div>
-        <div className="code-block">
-          {packet.protocolHeaderHex.map((line) => (
-            <div key={line}>{line}</div>
-          ))}
+      {hasProtocolHeader ? (
+        <div className="detail-box">
+          <div className="detail-label">Protocol Header</div>
+          <div className="code-block">
+            {packet.protocolHeaderHex.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="detail-box">
-        <div className="detail-label">Payload (UTF-8 preview)</div>
-        <div className="code-block code-block-payload">
-          {packet.payloadPreview.map((line) => (
-            <div key={line}>{line}</div>
-          ))}
+      {hasPayloadPreview ? (
+        <div className="detail-box">
+          <div className="detail-label">Payload Preview</div>
+          <div className="code-block code-block-payload">
+            {packet.payloadPreview.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
+          </div>
         </div>
-      </div>
-
-      <div className="packet-panel-actions">
-        <button className="primary-outline-button">View Full PCAP</button>
-        <button className="secondary-button">Report False Pos.</button>
-      </div>
+      ) : null}
     </aside>
   );
 }

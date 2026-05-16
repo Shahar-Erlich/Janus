@@ -1,7 +1,7 @@
 import { PropsWithChildren } from 'react';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-
+import { ShieldBan } from 'lucide-react';
 type AppShellProps = PropsWithChildren<{
   title: string;
 }>;

@@ -2,8 +2,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import type { ProtocolShare } from '../../types';
 import { SectionCard } from '../SectionCard';
 
-const COLORS = ['#46b7ff', '#7b7cff', '#ff4d7c', '#6b7ea4'];
-
+const COLORS = ['#a855f7', '#c084fc', '#7c3aed', '#581c87'];
 type ProtocolDistributionChartProps = {
   data: ProtocolShare[];
 };

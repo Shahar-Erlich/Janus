@@ -3,13 +3,14 @@
 #include <algorithm>
 #include <stdexcept>
 
-static inline void bitmapSet(std::array<uint64_t, 4> &bitMap, uint8_t bitToCheck)
+static inline void bitmapSet(std::bitset<256> &bitMap, uint8_t bitToCheck)
 {
-    bitMap[bitToCheck / BITS_IN_MAP_BUCKET] |= (1ull << (bitToCheck % BITS_IN_MAP_BUCKET));
+    bitMap.set(bitToCheck);
 }
-static inline bool bitmapHas(const std::array<uint64_t, 4> &bitMap, uint8_t bitToCheck)
+
+static inline bool bitmapHas(const std::bitset<256> &bitMap, uint8_t bitToCheck)
 {
-    return (bitMap[bitToCheck / BITS_IN_MAP_BUCKET] >> (bitToCheck % BITS_IN_MAP_BUCKET)) & 1ull;
+    return bitMap.test(bitToCheck);
 }
 VFRule VFRule::fromASCII(int id, std::size_t offset, const std::string &ruleString)
 {
@@ -17,7 +18,7 @@ VFRule VFRule::fromASCII(int id, std::size_t offset, const std::string &ruleStri
     rule.ruleId = id;
     rule.offset = offset;
 
-    const std::size_t anchorLength = std::min<std::size_t>(4, ruleString.size());
+    const std::size_t anchorLength = std::min<std::size_t>(maxRuleLength, ruleString.size());
     rule.length = static_cast<std::uint8_t>(anchorLength);
     rule.bytes = {0, 0, 0, 0};
 
@@ -41,7 +42,7 @@ void VectorFilteringEngine::build(const std::vector<VFRule> &rules)
 
     for (const auto &rule : rules)
     {
-        if (rule.length < 1 || rule.length > 4)
+        if (rule.length < 1 || rule.length > maxRuleLength)
             throw std::invalid_argument("VFRule.length must be 1..4");
 
         buckets[{rule.offset, rule.length}].push_back(rule);
@@ -75,7 +76,7 @@ void VectorFilteringEngine::addRule(RuleHelper::RuleMeta &newRule)
     metaByRuleId->at(ruleId) = std::move(newRule);
 }
 
-bool VectorFilteringEngine::addRuleToVectorEngine(VFRule newRule)
+bool VectorFilteringEngine::addRuleToVectorEngine(const VFRule &newRule)
 {
     GroupKey key{newRule.offset, newRule.length};
 
@@ -134,7 +135,7 @@ void VectorFilteringEngine::padAndPack(Group &group, const std::vector<VFRule> &
     group.lanesPadded = padded;
     group.groupRuleCount = rulesInGroup.size();
 
-    group.firstByteBitmap = {0, 0, 0, 0};
+    group.firstByteBitmap.reset();
     for (std::size_t i = 0; i < size; ++i)
     {
         bitmapSet(group.firstByteBitmap, rulesInGroup[i].bytes[0]);
@@ -147,8 +148,7 @@ void VectorFilteringEngine::padAndPack(Group &group, const std::vector<VFRule> &
         const auto &rule = rulesInGroup[currentRule];
         for (std::size_t anchorByteNumber = 0; anchorByteNumber < group.length; anchorByteNumber++)
         {
-            std::size_t &ruleByteNumber = anchorByteNumber;
-            group.anchorBytes.at(anchorByteNumber).at(currentRule) = rule.bytes[ruleByteNumber];
+            group.anchorBytes.at(anchorByteNumber).at(currentRule) = rule.bytes[anchorByteNumber];
         }
         group.ruleIDs[currentRule] = rule.ruleId;
     }

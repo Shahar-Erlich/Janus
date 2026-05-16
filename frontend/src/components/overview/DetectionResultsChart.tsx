@@ -27,7 +27,12 @@ export function DetectionResultsChart({ data }: DetectionResultsChartProps) {
                 color: '#d8e9ff',
               }}
             />
-            <Bar dataKey="total" radius={[12, 12, 0, 0]} fill="#41adff" maxBarSize={44} />
+            <Bar
+              dataKey="total"
+              radius={[12, 12, 0, 0]}
+              fill="#a855f7"
+              maxBarSize={44}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

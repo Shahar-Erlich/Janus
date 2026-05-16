@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <cstdint>
+#include <string_view>
 class RuleHelper
 {
 
@@ -32,7 +33,7 @@ public:
         int ruleId;
         std::array<std::uint8_t, 4> bytes;
     } RuleMeta;
-    static int idToRuleID(std::string id, std::string protoStr, int length, int offset, std::string hex);
+    static int idToRuleID(std::string_view id, std::string_view protoStr, int length, int offset, std::string_view hex);
     static int idToRuleID(RuleMeta &rule);
     static std::vector<std::uint8_t> hexToBytes(const std::string &hex);
 

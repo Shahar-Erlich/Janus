@@ -7,7 +7,7 @@ void RegexEngine::addRule(int id, const std::string &pattern, const std::string 
 
     if (!regex->ok())
     {
-        Logger::error("RE2 Compilation failed for [" + pattern + "]: " + regex->error());
+        Logger::error(std::format("RE2 Compilation failed for [{}]: {}", pattern, regex->error()));
         return;
     }
 
@@ -25,7 +25,7 @@ std::optional<int> RegexEngine::scan(const std::string &text) const
     }
     return std::nullopt;
 }
-bool RegexEngine::matchRule(int id, const std::string &text) const
+bool RegexEngine::matchRule(int id, std::string_view text) const
 {
     for (const auto &rule : m_rules)
     {

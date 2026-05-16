@@ -117,13 +117,13 @@ void finishDecisionStamp(Decision &decision,
 
     if (auto *tcpLayer = parsedPacket.getLayerOfType<pcpp::TcpLayer>())
     {
-        meta->mutable_source()->set_port(tcpLayer->getTcpHeader()->portSrc);
-        meta->mutable_destination()->set_port(tcpLayer->getTcpHeader()->portDst);
+        meta->mutable_source()->set_port(tcpLayer->getSrcPort());
+        meta->mutable_destination()->set_port(tcpLayer->getDstPort());
     }
     else if (auto *udpLayer = parsedPacket.getLayerOfType<pcpp::UdpLayer>())
     {
-        meta->mutable_source()->set_port(udpLayer->getUdpHeader()->portSrc);
-        meta->mutable_destination()->set_port(udpLayer->getUdpHeader()->portDst);
+        meta->mutable_source()->set_port(udpLayer->getSrcPort());
+        meta->mutable_destination()->set_port(udpLayer->getDstPort());
     }
 
     packetDecision.set_match_info(decision.ahoInfo);
@@ -161,21 +161,21 @@ void Core::handlePacket(const nlmsghdr *netLinkHeader)
         Logger::error("No NFQA packet header");
         return;
     }
-
+    auto *packetHeader = reinterpret_cast<nfqnl_msg_packet_hdr *>(mnl_attr_get_payload(attr[NFQA_PACKET_HDR]));
+    uint32_t packetID = ntohl(packetHeader->packet_id);
     if (!attr[NFQA_PAYLOAD])
     {
         Logger::error("No NFQA payload");
+        sendVerdict(packetID, NF_DROP);
+
         return;
     }
-
-    auto *packetHeader = reinterpret_cast<nfqnl_msg_packet_hdr *>(mnl_attr_get_payload(attr[NFQA_PACKET_HDR]));
-    uint32_t packetID = ntohl(packetHeader->packet_id);
 
     auto *rawPayloadBytes = static_cast<const uint8_t *>(mnl_attr_get_payload(attr[NFQA_PAYLOAD]));
     auto payloadLength = mnl_attr_get_payload_len(attr[NFQA_PAYLOAD]);
 
     struct timeval time;
-    gettimeofday(&time, NULL);
+    gettimeofday(&time, nullptr);
 
     pcpp::RawPacket packet = pcpp::RawPacket(rawPayloadBytes, payloadLength, time, false, pcpp::LINKTYPE_IPV4);
     pcpp::Packet parsedPacket = pcpp::Packet(&packet);
@@ -240,7 +240,6 @@ void Core::run()
 {
     packetPolicy->readPolicyLists();
 
-    bool running = true;
     while (running)
     {
         std::size_t receivedMessageLength = mnl_socket_recvfrom(m_nlSocket, m_buffer.data(), m_buffer.size());

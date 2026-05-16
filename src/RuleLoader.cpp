@@ -11,11 +11,11 @@
 
 using json = nlohmann::json;
 
-RuleLoaded RuleLoader::loadFromFile(const std::string &path)
+RuleLoaded RuleLoader::loadFromFile(std::string_view path)
 {
-    std::ifstream f(path);
+    std::ifstream f(path.data());
     if (!f.is_open())
-        throw std::runtime_error("Failed to open rules file: " + path);
+        throw std::runtime_error("Failed to open rules file");
 
     json j;
     f >> j;
@@ -36,17 +36,17 @@ RuleLoaded RuleLoader::loadFromFile(const std::string &path)
 
         const std::string offsetMode = r.value("offset_mode", "PAYLOAD");
         if (offsetMode != "PAYLOAD" && offsetMode != "EXACT")
-            throw std::runtime_error("offset_mode currently only supports PAYLOAD or EXACT (rule: " + id + ")");
+            throw std::runtime_error(std::format("offset_mode currently only supports PAYLOAD or EXACT (rule: {})", id));
 
         const int offset = r.at("offset").get<int>();
         const int length = r.at("length").get<int>();
         if (length < 1 || length > 4)
-            throw std::runtime_error("VF rule length must be 1..4 (rule: " + id + ")");
+            throw std::runtime_error(std::format("VF rule length must be 1..4 (rule: {})", id));
 
         const std::string hex = r.at("value_hex").get<std::string>();
         auto bytes = RuleHelper::hexToBytes(hex);
         if ((int)bytes.size() != length)
-            throw std::runtime_error("value_hex length mismatch (rule: " + id + ")");
+            throw std::runtime_error(std::format("value_hex length mismatch (rule: {})", id));
 
         const int ruleId = RuleHelper::idToRuleID(id, protoStr, length, offset, hex);
 
@@ -57,7 +57,7 @@ RuleLoaded RuleLoader::loadFromFile(const std::string &path)
         rule.bytes = {0, 0, 0, 0};
         for (int i = 0; i < length; i++)
             rule.bytes[i] = bytes[i];
-        rule.description = id;
+        rule.description = desc.empty() ? id : desc;
 
         out.rules.push_back(rule);
 

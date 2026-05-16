@@ -1,14 +1,13 @@
 import {
   BarChart3,
-  BellDot,
   Cpu,
   FileText,
   Gauge,
   LayoutDashboard,
   Radio,
-  Settings,
   Shield,
   ShieldCheck,
+  ShieldBan,
   Waypoints,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -18,12 +17,11 @@ const navItems: NavItem[] = [
   { label: 'Overview', to: '/overview', icon: LayoutDashboard },
   { label: 'Live Traffic', to: '/live-traffic', icon: Radio },
   { label: 'Events & Logs', to: '/events-logs', icon: FileText },
-  { label: 'Detection Engines', to: '/detection-engines', icon: Cpu },
   { label: 'Rules & Policies', to: '/rules-policies', icon: ShieldCheck },
+  { label: 'Blacklist', to: '/blacklist', icon: ShieldBan, },
   { label: 'Reports & Analytics', to: '/reports-analytics', icon: BarChart3, section: 'Analysis' },
   { label: 'System Health', to: '/system-health', icon: Gauge },
-  // { label: 'Remote Control', to: '/remote-control', icon: BellDot },
-  // { label: 'Settings', to: '/settings', icon: Settings, section: 'Management' },
+
 ];
 
 export function Sidebar() {

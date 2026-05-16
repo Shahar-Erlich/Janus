@@ -76,15 +76,19 @@ std::vector<std::uint8_t> RuleHelper::hexToBytes(const std::string &hex)
     return out;
 }
 int RuleHelper::idToRuleID(
-    std::string id,
-    std::string protoStr,
+    std::string_view id,
+    std::string_view protoStr,
     int length,
     int offset,
-    std::string hex)
+    std::string_view hex)
 {
-    const std::string key =
-        id + "|" + protoStr + "|" + std::to_string(offset) + "|" +
-        std::to_string(length) + "|" + hex;
+    const std::string key = std::format(
+        "{}|{}|{}|{}|{}",
+        id,
+        protoStr,
+        offset,
+        length,
+        hex);
 
     return static_cast<int>(stringHash(key) & 0x7fffffff);
 }
@@ -97,23 +101,23 @@ int RuleHelper::idToRuleID(RuleMeta &rule)
         rule.exact_offset,
         bytesToHex(rule.bytes, rule.length));
 }
-RuleHelper::RuleMeta::Action RuleHelper::parseAction(std::string a)
+RuleHelper::RuleMeta::Action RuleHelper::parseAction(std::string action)
 {
-    std::transform(a.begin(), a.end(), a.begin(), ::toupper);
-    if (a == "ALLOW")
+    std::transform(action.begin(), action.end(), action.begin(), ::toupper);
+    if (action == "ALLOW")
         return RuleHelper::RuleMeta::Action::ALLOW;
-    if (a == "FLAG")
+    if (action == "FLAG")
         return RuleHelper::RuleMeta::Action::FLAG;
-    if (a == "BLOCK")
+    if (action == "BLOCK")
         return RuleHelper::RuleMeta::Action::BLOCK;
     return RuleHelper::RuleMeta::Action::FLAG;
 }
-RuleHelper::RuleMeta::Proto RuleHelper::parseProto(std::string p)
+RuleHelper::RuleMeta::Proto RuleHelper::parseProto(std::string protocol)
 {
-    std::transform(p.begin(), p.end(), p.begin(), ::toupper);
-    if (p == "TCP")
+    std::transform(protocol.begin(), protocol.end(), protocol.begin(), ::toupper);
+    if (protocol == "TCP")
         return RuleHelper::RuleMeta::Proto::TCP;
-    if (p == "UDP")
+    if (protocol == "UDP")
         return RuleHelper::RuleMeta::Proto::UDP;
     return RuleHelper::RuleMeta::Proto::ANY;
 }

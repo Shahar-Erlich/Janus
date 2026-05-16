@@ -32,12 +32,13 @@ export function TrafficVolumeChart({ data }: TrafficVolumeChartProps) {
           <AreaChart data={data}>
             <defs>
               <linearGradient id="inboundFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(69, 181, 255, 0.65)" />
-                <stop offset="100%" stopColor="rgba(69, 181, 255, 0.04)" />
+                <stop offset="0%" stopColor="rgba(168, 85, 247, 0.42)" />
+                <stop offset="100%" stopColor="rgba(168, 85, 247, 0.03)" />
               </linearGradient>
+
               <linearGradient id="outboundFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(123, 124, 255, 0.45)" />
-                <stop offset="100%" stopColor="rgba(123, 124, 255, 0.03)" />
+                <stop offset="0%" stopColor="rgba(192, 132, 252, 0.28)" />
+                <stop offset="100%" stopColor="rgba(192, 132, 252, 0.02)" />
               </linearGradient>
             </defs>
             <CartesianGrid stroke="rgba(106, 140, 179, 0.12)" vertical={false} />
@@ -54,15 +55,16 @@ export function TrafficVolumeChart({ data }: TrafficVolumeChartProps) {
             <Area
               type="monotone"
               dataKey="inbound"
-              stroke="#4db7ff"
+              stroke="#a855f7"
               strokeWidth={3}
               fill="url(#inboundFill)"
               dot={false}
             />
+
             <Area
               type="monotone"
               dataKey="outbound"
-              stroke="#7b7cff"
+              stroke="#c084fc"
               strokeWidth={3}
               fill="url(#outboundFill)"
               dot={false}

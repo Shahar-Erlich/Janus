@@ -64,6 +64,7 @@ private:
     std::unique_ptr<PacketPolicy> packetPolicy;
     AhoCorasick &m_ahoCorasick;
     SystemEventSender &systemSender;
+    std::atomic_bool running = true;
 
 private:
     /**

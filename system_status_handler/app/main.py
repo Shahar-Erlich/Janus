@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import string
+import ipaddress
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,7 @@ configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
 RULES_LOCK = asyncio.Lock()
-
+BLACKLIST_LOCK = asyncio.Lock()
 
 class RuleCreateRequest(BaseModel):
     id: str = Field(..., min_length=1, max_length=120)
@@ -37,7 +38,8 @@ class RuleCreateRequest(BaseModel):
     length: int = Field(..., ge=1, le=4)
     value_hex: str = Field(..., min_length=2)
     regex: str = Field(default="")
-
+class BlacklistAddressRequest(BaseModel):
+    address: str = Field(..., min_length=1, max_length=64)
 
 def _read_icd() -> dict[str, Any]:
     path = Path(settings.icd_path)
@@ -63,6 +65,70 @@ def _write_rule_json_atomic(data: dict[str, Any]) -> None:
     with open(path, "w", encoding="utf-8") as f:
         f.write(payload)
         f.flush()
+def _blacklist_path() -> Path:
+    return Path(settings.ip_blacklist_path)
+
+
+def _ensure_blacklist_file() -> None:
+    path = _blacklist_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(exist_ok=True)
+
+
+def _normalize_ip(value: str) -> str:
+    try:
+        return str(ipaddress.ip_address(value.strip()))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid IPv4/IPv6 address")
+
+
+def _read_blacklist() -> dict[str, Any]:
+    _ensure_blacklist_file()
+    path = _blacklist_path()
+
+    raw = path.read_text(encoding="utf-8")
+    addresses: list[str] = []
+    seen: set[str] = set()
+
+    for raw_line in raw.splitlines():
+        line = raw_line.strip()
+
+        if not line or line.startswith("#"):
+            continue
+
+        try:
+            normalized = str(ipaddress.ip_address(line))
+        except ValueError:
+            continue
+
+        if normalized not in seen:
+            seen.add(normalized)
+            addresses.append(normalized)
+
+    return {
+        "path": str(path),
+        "count": len(addresses),
+        "addresses": addresses,
+        "raw": raw,
+    }
+
+
+def _write_blacklist(addresses: list[str]) -> None:
+    _ensure_blacklist_file()
+    path = _blacklist_path()
+
+    unique = sorted(
+        set(addresses),
+        key=lambda item: int(ipaddress.ip_address(item)),
+    )
+
+    payload = "\n".join(unique)
+    if payload:
+        payload += "\n"
+
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(payload, encoding="utf-8")
+    tmp_path.replace(path)
 
 def _normalize_rule(payload: RuleCreateRequest) -> dict[str, Any]:
     rule_id = payload.id.strip()
@@ -190,7 +256,53 @@ async def healthz() -> dict[str, object]:
 @app.get("/rules")
 async def list_rules() -> dict[str, Any]:
     return _read_icd()
+@app.get("/blacklist")
+async def get_blacklist() -> dict[str, Any]:
+    async with BLACKLIST_LOCK:
+        return _read_blacklist()
 
+
+@app.post("/blacklist")
+async def add_blacklist_address(payload: BlacklistAddressRequest) -> dict[str, Any]:
+    normalized = _normalize_ip(payload.address)
+
+    async with BLACKLIST_LOCK:
+        data = _read_blacklist()
+        addresses = list(data["addresses"])
+
+        if normalized not in addresses:
+            addresses.append(normalized)
+            _write_blacklist(addresses)
+
+        updated = _read_blacklist()
+
+    return {
+        "ok": True,
+        "message": "address added to blacklist.txt",
+        "address": normalized,
+        "count": updated["count"],
+    }
+
+
+@app.delete("/blacklist/{address:path}")
+async def delete_blacklist_address(address: str) -> dict[str, Any]:
+    normalized = _normalize_ip(address)
+
+    async with BLACKLIST_LOCK:
+        data = _read_blacklist()
+        addresses = list(data["addresses"])
+        updated_addresses = [item for item in addresses if item != normalized]
+
+        _write_blacklist(updated_addresses)
+        updated = _read_blacklist()
+
+    return {
+        "ok": True,
+        "message": "address removed from blacklist.txt",
+        "address": normalized,
+        "removed": len(updated_addresses) != len(addresses),
+        "count": updated["count"],
+    }
 async def _send_rule_to_cpp(rule: dict[str, Any]) -> dict[str, Any]:
     command = {
         "type": "ADD_RULE",

@@ -57,5 +57,5 @@ public:
      * @return std::optional<std::string> Formatted match summary if at least one
      * pattern was found, or std::nullopt otherwise.
      */
-    std::optional<std::string> search(const std::string &text);
+    std::optional<std::string> search(std::string_view text);
 };

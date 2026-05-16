@@ -6,16 +6,14 @@ import { mapLivePacketEvent, mapPacketDetails, mapPacketSummary } from '../mappe
 import { janusClient } from '../services/janusClient';
 import type { PacketRecord } from '../types';
 
-type ProtocolFilterValue = 'ALL' | 'TCP' | 'UDP' | 'HTTP' | 'OTHER';
+type ProtocolFilterValue = 'ALL' | 'TCP' | 'UDP' | 'OTHER';
 type ActionFilterValue = 'ALL' | 'Passed' | 'Blocked' | 'Flagged';
-type EngineFilterValue = 'ALL' | 'SPI_DPI' | 'SPI' | 'DPI' | 'POLICY';
 type TimeFilterValue = '5M' | '15M' | '1H' | '24H' | 'ALL';
 
 const protocolOptions: Array<{ label: string; value: ProtocolFilterValue }> = [
-  { label: 'Protocol: TCP/UDP', value: 'ALL' },
+  { label: 'Protocol: All', value: 'ALL' },
   { label: 'Protocol: TCP', value: 'TCP' },
   { label: 'Protocol: UDP', value: 'UDP' },
-  { label: 'Protocol: HTTP', value: 'HTTP' },
   { label: 'Protocol: Other', value: 'OTHER' },
 ];
 
@@ -24,14 +22,6 @@ const actionOptions: Array<{ label: string; value: ActionFilterValue }> = [
   { label: 'Action: Passed', value: 'Passed' },
   { label: 'Action: Blocked', value: 'Blocked' },
   { label: 'Action: Flagged', value: 'Flagged' },
-];
-
-const engineOptions: Array<{ label: string; value: EngineFilterValue }> = [
-  { label: 'Engine: SPI/DPI', value: 'SPI_DPI' },
-  { label: 'Engine: Policy', value: 'POLICY' },
-  { label: 'Engine: SPI', value: 'SPI' },
-  { label: 'Engine: DPI', value: 'DPI' },
-  { label: 'Engine: All', value: 'ALL' },
 ];
 
 const timeOptions: Array<{ label: string; value: TimeFilterValue }> = [
@@ -45,7 +35,6 @@ const timeOptions: Array<{ label: string; value: TimeFilterValue }> = [
 function parsePacketTimestamp(value: string): number | null {
   if (!value) return null;
 
-  // supports "29/03/2026, 01:45:44"
   const match = value.match(
     /^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{2})(?::(\d{2}))?$/,
   );
@@ -60,6 +49,7 @@ function parsePacketTimestamp(value: string): number | null {
       Number(min),
       Number(ss ?? '0'),
     );
+
     return Number.isNaN(dt.getTime()) ? null : dt.getTime();
   }
 
@@ -67,7 +57,11 @@ function parsePacketTimestamp(value: string): number | null {
   return Number.isNaN(fallback) ? null : fallback;
 }
 
-function isWithinSelectedWindow(packet: PacketRecord, filter: TimeFilterValue, newestTs: number | null): boolean {
+function isWithinSelectedWindow(
+  packet: PacketRecord,
+  filter: TimeFilterValue,
+  newestTs: number | null,
+): boolean {
   if (filter === 'ALL') return true;
 
   const packetTs = parsePacketTimestamp(packet.timestamp);
@@ -95,9 +89,9 @@ export function LiveTrafficPage() {
   const [search, setSearch] = useState('');
   const [protocolFilter, setProtocolFilter] = useState<ProtocolFilterValue>('ALL');
   const [actionFilter, setActionFilter] = useState<ActionFilterValue>('ALL');
-  const [engineFilter, setEngineFilter] = useState<EngineFilterValue>('SPI_DPI');
   const [timeFilter, setTimeFilter] = useState<TimeFilterValue>('5M');
   const [loading, setLoading] = useState(true);
+  const [liveFeedActive, setLiveFeedActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const newestTimestamp = useMemo(() => {
@@ -118,23 +112,6 @@ export function LiveTrafficPage() {
 
       if (actionFilter !== 'ALL' && packet.status !== actionFilter) {
         return false;
-      }
-
-      if (engineFilter === 'POLICY' && !packet.enginePath.includes('POLICY')) {
-        return false;
-      }
-
-      if (engineFilter === 'SPI' && !packet.enginePath.includes('SPI')) {
-        return false;
-      }
-
-      if (engineFilter === 'DPI' && !packet.enginePath.includes('DPI')) {
-        return false;
-      }
-
-      if (engineFilter === 'SPI_DPI') {
-        const hasEither = packet.enginePath.includes('SPI') || packet.enginePath.includes('DPI');
-        if (!hasEither) return false;
       }
 
       if (!isWithinSelectedWindow(packet, timeFilter, newestTimestamp)) {
@@ -159,7 +136,7 @@ export function LiveTrafficPage() {
 
       return haystack.includes(q);
     });
-  }, [packets, search, protocolFilter, actionFilter, engineFilter, timeFilter, newestTimestamp]);
+  }, [packets, search, protocolFilter, actionFilter, timeFilter, newestTimestamp]);
 
   const selectedPacket = useMemo(
     () => filteredPackets.find((packet) => packet.id === selectedId) ?? filteredPackets[0],
@@ -168,6 +145,7 @@ export function LiveTrafficPage() {
 
   useEffect(() => {
     if (!filteredPackets.length) return;
+
     if (!selectedPacket) {
       setSelectedId(filteredPackets[0].id);
     }
@@ -197,11 +175,22 @@ export function LiveTrafficPage() {
       }
     };
 
-    void loadRecentPackets();
+    const subscribeToLivePackets = async () => {
+      try {
+        await janusClient.subscribeLive(true);
+        if (!cancelled) {
+          setLiveFeedActive(true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLiveFeedActive(false);
+          console.error('Failed to subscribe to live packets', err);
+        }
+      }
+    };
 
-    void janusClient.subscribeLive(true).catch((err) => {
-      console.error('Failed to subscribe to live packets', err);
-    });
+    void loadRecentPackets();
+    void subscribeToLivePackets();
 
     unsubscribe = janusClient.onLivePacket((response) => {
       if (!response.livePacketEvent || cancelled) return;
@@ -218,6 +207,7 @@ export function LiveTrafficPage() {
 
     return () => {
       cancelled = true;
+      setLiveFeedActive(false);
       unsubscribe();
       void janusClient.subscribeLive(false).catch(() => { });
     };
@@ -259,7 +249,6 @@ export function LiveTrafficPage() {
     setSearch('');
     setProtocolFilter('ALL');
     setActionFilter('ALL');
-    setEngineFilter('SPI_DPI');
     setTimeFilter('5M');
   };
 
@@ -285,7 +274,7 @@ export function LiveTrafficPage() {
         <label className="page-search">
           <Search size={16} />
           <input
-            placeholder="Search by IP address, Port, or Rule ID"
+            placeholder="Search by IP address, port, rule, action, or engine path"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -312,18 +301,6 @@ export function LiveTrafficPage() {
             onChange={(event) => setActionFilter(event.target.value as ActionFilterValue)}
           >
             {actionOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="filter-chip"
-            value={engineFilter}
-            onChange={(event) => setEngineFilter(event.target.value as EngineFilterValue)}
-          >
-            {engineOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -380,14 +357,31 @@ export function LiveTrafficPage() {
 
       <footer className="live-footer-bar">
         <div className="live-footer-item">
-          <span className="status-dot" />
-          <span>Live Feed: <strong>Active</strong></span>
+          <span className={`status-dot ${liveFeedActive ? '' : 'status-dot-muted'}`} />
+          <span>
+            Live Feed: <strong>{liveFeedActive ? 'Active' : 'Disconnected'}</strong>
+          </span>
         </div>
-        <div className="live-footer-item">Packets Loaded: <strong>{packets.length}</strong></div>
-        <div className="live-footer-item">Filtered View: <strong>{filteredPackets.length}</strong></div>
-        <div className="live-footer-item">Blocked: <strong>{blockedCount}</strong></div>
-        <div className="live-footer-item">Threat Level: <strong>{threatLevel}</strong></div>
-        <div className="live-footer-item">Selected: <strong>{selectedPacket?.sourceIp ?? '—'}</strong></div>
+
+        <div className="live-footer-item">
+          Packets Loaded: <strong>{packets.length}</strong>
+        </div>
+
+        <div className="live-footer-item">
+          Filtered View: <strong>{filteredPackets.length}</strong>
+        </div>
+
+        <div className="live-footer-item">
+          Blocked: <strong>{blockedCount}</strong>
+        </div>
+
+        <div className="live-footer-item">
+          Threat Level: <strong>{threatLevel}</strong>
+        </div>
+
+        <div className="live-footer-item">
+          Selected: <strong>{selectedPacket?.sourceIp ?? '—'}</strong>
+        </div>
       </footer>
     </div>
   );

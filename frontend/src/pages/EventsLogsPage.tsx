@@ -66,10 +66,6 @@ export function EventsLogsPage() {
           <h2 className="page-section-title">Security Events</h2>
           <p className="page-section-subtitle">Real-time threat monitoring and searchable event analysis.</p>
         </div>
-        {/* <div className="hero-button-row">
-          <button className="secondary-button">Export CSV</button>
-          <button className="primary-button">Live Stream</button>
-        </div> */}
       </section>
 
       <section className="events-tab-row">

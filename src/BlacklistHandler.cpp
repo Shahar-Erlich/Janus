@@ -60,13 +60,13 @@ void BlacklistHandler::addToIPBlacklist(const std::string &ip)
     in_addr addr{};
     if (inet_pton(AF_INET, ip.c_str(), &addr) != 1)
     {
-        Logger::error("Invalid IPv4 address: " + ip);
+        Logger::error(std::format("Invalid IPv4 address: {}", ip));
         return;
     }
 
     if (!m_ipBlacklist.insert(addr.s_addr).second)
     {
-        Logger::error(ip + " is already blacklisted");
+        Logger::error(std::format("{} is already blacklisted", ip));
         return;
     }
 
@@ -88,7 +88,7 @@ void BlacklistHandler::addToPortBlacklist(const std::string &port)
 
     if (*end != '\0' || value < 1 || value > 65535)
     {
-        Logger::error("Invalid port: " + port);
+        Logger::error(std::format("Invalid port: {}", port));
         return;
     }
 
@@ -146,7 +146,7 @@ void BlacklistHandler::removeFromIPBlacklist(const std::string &ip)
     in_addr addr{};
     if (inet_pton(AF_INET, ip.c_str(), &addr) != 1)
     {
-        Logger::error("Invalid IPv4 address: " + ip);
+        Logger::error(std::format("Invalid IPv4 address: ", ip));
         return;
     }
     if (m_ipBlacklist.erase(addr.s_addr) > 0)
@@ -163,7 +163,7 @@ void BlacklistHandler::removeFromPortBlacklist(const std::string &port)
 
     if (*end != '\0' || value < 1 || value > 65535)
     {
-        Logger::error("Invalid port: " + port);
+        Logger::error(std::format("Invalid port: ", port));
         return;
     }
 

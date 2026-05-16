@@ -5,18 +5,21 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <bitset>
 #include "RuleHelper.hpp"
 
 #include "SimdCompatability.hpp"
 
 #define BITS_IN_MAP_BUCKET 64
 
+constexpr int maxRuleLength = 4;
+
 struct VFRule
 {
     int ruleId;
     std::size_t offset;
     std::uint8_t length;
-    std::array<std::uint8_t, 4> bytes;
+    std::array<std::uint8_t, maxRuleLength> bytes;
     std::string description;
 
     /**
@@ -53,7 +56,7 @@ public:
      * @return const std::string& the description of the rule
      */
     const std::string &describe(int id) const;
-    bool addRuleToVectorEngine(VFRule newRule);
+    bool addRuleToVectorEngine(const VFRule &newRule);
     void setRuleMeta(std::unordered_map<int, RuleHelper::RuleMeta> *meta) { metaByRuleId = meta; }
 
 private:
@@ -90,7 +93,7 @@ private:
         std::vector<int> ruleIDs;
 
         std::size_t lanesPadded = 0;
-        std::array<uint64_t, 4> firstByteBitmap{};
+        std::bitset<256> firstByteBitmap{};
     };
 
     std::unordered_map<GroupKey, Group, GroupKeyHash> m_groups;

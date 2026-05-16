@@ -28,7 +28,7 @@ public:
      * @return true if regex found
      * @return false if regex not found
      */
-    bool matchRule(int id, const std::string &text) const;
+    bool matchRule(int id, std::string_view text) const;
     /**
      * @brief add regex rule to regex engine
      *

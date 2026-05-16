@@ -28,7 +28,8 @@ class Settings:
 
     ingest_queue_maxsize: int = int(os.getenv("JANUS_INGEST_QUEUE_MAXSIZE", "10000"))
     frontend_send_timeout_sec: float = float(os.getenv("JANUS_FRONTEND_SEND_TIMEOUT_SEC", "3.0"))
-    icd_path: str = os.getenv("JANUS_ICD_PATH", "/app/json.json")
+    icd_path: str = os.getenv("JANUS_RULES_PATH", "/app/json.json")
+    ip_blacklist_path: str = os.getenv("JANUS_IP_BLACKLIST_PATH", "/blacklists/ip_blacklist.txt")
 
     db_pool_min_size: int = int(os.getenv("JANUS_DB_POOL_MIN_SIZE", "1"))
     db_pool_max_size: int = int(os.getenv("JANUS_DB_POOL_MAX_SIZE", "8"))
