@@ -10,16 +10,16 @@ class AhoCorasick
 private:
     struct Vertex
     {
-        std::unordered_map<char, int> children = {}; // Links to the child vertexes in the trie
-        std::vector<int> output_links = {};          // All pattern word IDs ending at this node
-        int parent = -1;                             // Link to the parent vertex
-        int failure_link = -1;                       // failure link from current vertex
-        char parent_char;                            // Char which moves us from the parent vertex to the current vertex
-        bool leaf = false;                           // Flag that some word from the dictionary ends in this vertex
+        std::unordered_map<char, int> children = {};
+        std::vector<int> output_links = {};
+        int parent = -1;
+        int failure_link = -1;
+        char parent_char;
+        bool leaf = false;
     };
 
     /**
-     * Calculates the suffix (failure) link for a given node
+     * @brief calculates the suffix (failure) link for a given node
      * @param vertex the vertex ID
      */
     void calcFailureLink(int vertex);
@@ -28,31 +28,34 @@ public:
     AhoCorasick();
     AhoCorasick(AhoCorasick &other);
     ~AhoCorasick() = default;
-    std::vector<Vertex> _trie;          // Holds the entire trie structure as an array of vertexes
-    int _size;                          // the size of the trie
-    int _root;                          // ID of the root node (0)
-    std::vector<std::string> _patterns; // store actual pattern strings
-    int _word_id;                       // the last unique ID to each inserted word and is used for tracking matches
+    std::vector<Vertex> _trie;
+    int _size;
+    int _root;
+    std::vector<std::string> _patterns;
+    int _word_id;
 
     /**
-     * clear the trie
+     * @brief clear the trie
      */
     void clear();
 
     /**
-     * Inserts a new pattern string into the trie and assigns it a unique wordID.
+     * @brief inserts a new pattern string into the trie and assigns it a unique wordID.
      * @param pattern the string to be inserted
      */
     void addString(const std::string &pattern);
 
     /**
-     * Builds failure links and output link logic for efficient pattern matching.
+     * @brief uilds failure links and output link logic for efficient pattern matching.
      */
     void prepare();
 
     /**
-     * Processes a given text, searching for all patterns inserted.
-     * @return the number of all matched patterns
+     * @brief Search the given text for all inserted patterns.
+     *
+     * @param text Text to scan.
+     * @return std::optional<std::string> Formatted match summary if at least one
+     * pattern was found, or std::nullopt otherwise.
      */
-    std::optional<std::string> search(const std::string &text);
+    std::optional<std::string> search(std::string_view text);
 };

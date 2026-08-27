@@ -78,7 +78,7 @@ namespace BlacklistHandler
      */
     bool isProtocolAllowed(const pcpp::Packet &packet);
     /**
-     * @brief check if packet source port is blacklisted
+     * @brief check if packet destination port is blacklisted
      *
      * @param packet packet to check
      * @return true port is blacklisted

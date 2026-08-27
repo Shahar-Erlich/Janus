@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package janus.common;
+
+enum Protocol {
+  PROTOCOL_UNSPECIFIED = 0;
+  PROTOCOL_ANY = 1;
+  PROTOCOL_TCP = 2;
+  PROTOCOL_UDP = 3;
+  PROTOCOL_HTTP = 4;
+  PROTOCOL_OTHER = 5;
+}
+
+enum Verdict {
+  VERDICT_UNSPECIFIED = 0;
+  VERDICT_ALLOW = 1;
+  VERDICT_DROP = 2;
+}
+
+enum RuleAction {
+  RULE_ACTION_UNSPECIFIED = 0;
+  RULE_ACTION_ALLOW = 1;
+  RULE_ACTION_FLAG = 2;
+  RULE_ACTION_BLOCK = 3;
+}
+
+enum EngineStage {
+  ENGINE_STAGE_UNSPECIFIED = 0;
+  ENGINE_STAGE_PREPROCESS = 1;
+  ENGINE_STAGE_POLICY = 2;
+  ENGINE_STAGE_VECTOR_FILTER = 3;
+  ENGINE_STAGE_REGEX = 4;
+  ENGINE_STAGE_AHO = 5;
+  ENGINE_STAGE_DPI = 6;
+  ENGINE_STAGE_ENCAPSULATION = 7;
+  ENGINE_STAGE_TRANSMISSION = 8;
+  ENGINE_STAGE_LOGGING = 9;
+}
+
+message Endpoint {
+  string ip = 1;
+  uint32 port = 2;
+}
+
+message RuleHit {
+  int32 rule_id = 1;
+  string rule_name = 2;
+  string rule_desc = 3;
+  Protocol protocol = 4;
+  RuleAction action = 5;
+  string offset_mode = 6;
+  uint32 offset = 7;
+  uint32 length = 8;
+}
+
+message ProcessingStamp {
+  EngineStage stage = 1;
+  uint64 started_unix_ms = 2;
+  uint64 finished_unix_ms = 3;
+  uint64 duration_us = 4;
+  string status = 5;
+}

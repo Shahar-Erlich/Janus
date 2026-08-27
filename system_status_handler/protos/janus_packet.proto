@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package janus.packet;
+
+import "janus_common.proto";
+
+message PacketMetadata {
+  string event_id = 1;
+  uint32 packet_id = 2;
+  uint32 queue_id = 3;
+
+  uint64 ts_unix_ms = 4;
+  uint32 payload_length = 5;
+  uint32 total_length = 6;
+
+  janus.common.Protocol protocol = 7;
+  janus.common.Endpoint source = 8;
+  janus.common.Endpoint destination = 9;
+
+  bool is_fragmented = 10;
+  bool is_reassembled = 11;
+}
+
+message PreprocessingMessage {
+  PacketMetadata metadata = 1;
+  string parser_status = 2;
+  string parser_notes = 3;
+  bytes payload_preview = 4;
+}
+
+message PacketDecisionEvent {
+  PacketMetadata metadata = 1;
+
+  janus.common.Verdict verdict = 2;
+  bool flagged = 3;
+  bool inspected = 4;
+
+  repeated janus.common.RuleHit rule_hits = 5;
+
+  string match_info = 6;
+  string detection_source = 7;
+
+  repeated janus.common.ProcessingStamp processing_trace = 8;
+
+  uint64 end_to_end_processing_us = 9;
+
+  string node_name = 10;
+  string container_name = 11;
+
+  bool blacklist_ip_hit = 12;
+  bool blacklist_port_hit = 13;
+  bool protocol_blocked = 14;
+}

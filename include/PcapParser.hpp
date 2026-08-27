@@ -23,14 +23,12 @@ namespace PcapParser
     /**
      * @brief Extract the pcpp packet's source address
      *
-     * @param ipv4 the IPv4Layer object of the sent packet
      * @return the packet's source address
      */
     pcpp::IPv4Address extractSourceAddress(const pcpp::Packet &packet);
     /**
      * @brief Extract the pcpp packet's destination address
      *
-     * @param ipv4 the IPv4Layer object of the sent packet
      * @return the packet's destination address
      */
     pcpp::IPv4Address extractDestinationAddress(const pcpp::Packet &packet);
@@ -44,7 +42,6 @@ namespace PcapParser
     /**
      * @brief Extract the pcpp packet payload
      *
-     * @param ipv4 the pcpp packet's IPv4Layer object
      * @return vector containing the pcpp package's payload bytes
      */
     std::vector<uint8_t> extractPacketPayload(const pcpp::Packet &packet);
@@ -73,20 +70,18 @@ namespace PcapParser
  */
 bool sendPacket(const pcpp::Packet &packet);
 /**
- * @brief send TCP packet to destination
+ * @brief send a TCP packet
  *
- * @param parsed pcpp::Packet object to send that includes the destination
+ * @param packet packet to send
+ * @return true if sending succeeded
+ * @return false if sending failed
  */
-void sendTcpPacket(const pcpp::Packet &packet);
+bool sendTcpPacket(const pcpp::Packet &packet);
 /**
- * @brief send UDP packet to destination
+ * @brief send a UDP packet
  *
- * @param parsed pcpp::Packet object to send that includes the destination
+ * @param packet packet to send
+ * @return true if sending succeeded
+ * @return false if sending failed
  */
-void sendUdpPacket(const pcpp::Packet &packet);
-/**
- * @brief send ICMP packet to destination
- *
- * @param parsed pcpp::Packet object to send that includes the destination
- */
-void sendIcmpPacket(const pcpp::Packet &packet);
+bool sendUdpPacket(const pcpp::Packet &packet);

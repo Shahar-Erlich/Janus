@@ -2,11 +2,11 @@
 #include "TerminalColors.hpp"
 #include <print>
 
-void Logger::log(std::string log)
-{
-    std::println(stdout, "[System] {}", log);
-    std::fflush(stdout);
-}
+// void // Logger::log(std::string log)
+// {
+//     // std::println(stdout, "[System] {}", log);
+//     std::fflush(stdout);
+// }
 
 void Logger::error(std::string error)
 {

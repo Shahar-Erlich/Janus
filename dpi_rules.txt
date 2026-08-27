@@ -444,6 +444,7 @@ wso
 x-api-key
 x-forwarded-for:
 xp_cmdshell
+|
 | BASH
 | SH
 | bash

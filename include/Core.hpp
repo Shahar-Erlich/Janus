@@ -28,6 +28,9 @@ class PacketPolicy;
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include "SystemEventSender.hpp"
+#include "RuleHelper.hpp"
+
 #define QUEUE_NUM 0
 #define WORD_BYTE 4
 
@@ -39,7 +42,7 @@ public:
      *
      * @param queueNum NFQ queue number to use
      */
-    explicit Core(uint16_t queueNum, AhoCorasick &ac);
+    explicit Core(uint16_t queueNum, AhoCorasick &ac, SystemEventSender &ses);
     /**
      * @brief Destroy the Core object
      *
@@ -51,6 +54,7 @@ public:
      *
      */
     void init();
+    bool addRule(RuleHelper::RuleMeta &meta);
 
 private:
     mnl_socket *m_nlSocket = nullptr;
@@ -59,8 +63,8 @@ private:
     std::vector<uint8_t> m_verdictBuffer;
     std::unique_ptr<PacketPolicy> packetPolicy;
     AhoCorasick &m_ahoCorasick;
-    std::atomic<uint64_t> packetCounter{0};
-    std::atomic<uint64_t> verdictCounter{0};
+    SystemEventSender &systemSender;
+    std::atomic_bool running = true;
 
 private:
     /**
@@ -88,13 +92,18 @@ private:
      */
     static int mnlCallback(const nlmsghdr *netLinkHeader, void *data);
     /**
-     * @brief vWalidate and parse packets
+     * @brief parse, inspect, and process a packet received from NFQUEUE.
      *
-     * @param netLinkHeader network link header recieved from NFQUEUE
+     * extracts packet metadata and payload from the netlink message, evaluates
+     * the packet against the policy engine, builds a PacketDecisionEvent, sends
+     * the event to the system event sender, and finally sends the verdict back
+     * to the kernel.
+     *
+     * @param netLinkHeader netlink header received from NFQUEUE.
      */
     void handlePacket(const nlmsghdr *netLinkHeader);
     /**
-     * @brief parse packet to TCP/UDP/ICMP/HTTP format
+     * @brief parse packet to TCP/UDP format
      *
      * @param attr netlink attribute array parsed from header
      * @return Packet parsed packet in correct format
@@ -104,7 +113,7 @@ private:
      * @brief sends verdict to kernel about package
      *
      * @param id package to accept/drop
-     * @param drop tell the kernel whether to drop or accepe the package
+     * @param drop tell the kernel whether to drop or accept the package
      */
     void sendVerdict(uint32_t id, std::size_t drop);
 };

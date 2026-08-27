@@ -9,42 +9,91 @@
 
 #include "AhoCorasick.hpp"
 #include "VectorFilteringEngine.hpp"
+#include "RegexEngine.hpp"
+#include "RuleLoader.hpp"
+#include "janus_common.pb.h"
+#include "janus_packet.pb.h"
 
 struct ConnectionState
 {
     std::vector<uint8_t> clientBuffer;
     std::vector<uint8_t> serverBuffer;
     int sessionId = 0;
-    bool flowFlagged = false; // אם תרצה בעתיד drop-fast על כל הסשן
+    bool flowFlagged = false;
+    bool flowConfirmed = false;
+    std::vector<int> confirmedRuleIds;
+    std::string confirmedAhoInfo;
 };
 
 struct TcpPacketScanResult
 {
     bool vfHit = false;
-    std::vector<int> vfRuleIds; // ruleIds (מה-VF)
+    std::vector<int> vfRuleIds;
     bool ahoHit = false;
-    std::string ahoInfo; // מה ש-Aho מחזיר (אם יש)
+    std::string ahoInfo;
+    std::vector<janus::common::ProcessingStamp> trace;
 };
 
 class TcpStreamHandler
 {
 public:
-    TcpStreamHandler(AhoCorasick &ac, VectorFilteringEngine &ve);
+    /**
+     * @brief Construct a new Tcp Stream Handler object
+     *
+     * @param ac ahocorasick engine
+     * @param ve vector filtering engine
+     * @param re regex engine
+     */
+    TcpStreamHandler(AhoCorasick &ac, VectorFilteringEngine &ve, RegexEngine &re);
     TcpStreamHandler(const TcpStreamHandler &) = delete;
     TcpStreamHandler &operator=(const TcpStreamHandler &) = delete;
 
-    // מחזיר תוצאה פר פאקטה (סינכרוני מבחינת PacketPolicy)
+    /**
+     * @brief process packet, add it to the correct session's buffer and scan it
+     *
+     * @param packet packet to process and scan
+     * @return TcpPacketScanResult the results of the DPI scans
+     */
     TcpPacketScanResult processPacket(pcpp::Packet &packet);
-
+    /**
+     * @brief Set a rule meta id in the metadata map
+     *
+     * @param meta metadata of a rule
+     */
+    void setRuleMeta(std::unordered_map<int, RuleHelper::RuleMeta> *meta) { m_metaMap = meta; }
+    /**
+     * @brief shutdown the TCP state machine
+     *
+     */
     void shutdown();
 
 private:
-    static constexpr std::size_t MAX_ANCHOR_LEN = 4;     // VF anchor limit
-    static constexpr std::size_t MAX_STREAM_KEEP = 4096; // keep last bytes
-    static constexpr std::size_t AHO_TAIL = 64;          // tail for aho window
+    static constexpr std::size_t MAX_ANCHOR_LEN = 4;
+    static constexpr std::size_t MAX_STREAM_KEEP = 4096;
+    static constexpr std::size_t AHO_TAIL = 64;
 
+    /**
+     * @brief callback to call when a TCP connection starts
+     *
+     * @param connectionData new connection established
+     * @param userCookie the unique user identifier
+     */
     static void onConnectionStart(const pcpp::ConnectionData &connectionData, void *userCookie);
+    /**
+     * @brief callback to call when data is entered to the connection
+     *
+     * @param side which side sent the data
+     * @param tcpData the data
+     * @param userCookie the unique use ID
+     */
     static void onDataReady(int8_t side, const pcpp::TcpStreamData &tcpData, void *userCookie);
+    /**
+     * @brief callback to call when TCP connection ends
+     *
+     * @param connData the connection data
+     * @param reason the reason for closing (error/shutdown etc...)
+     * @param userCookie the unique user ID
+     */
     static void onConnectionEnd(const pcpp::ConnectionData &connData,
                                 pcpp::TcpReassembly::ConnectionEndReason reason,
                                 void *userCookie);
@@ -53,10 +102,112 @@ private:
     pcpp::TcpReassembly reassembly;
     std::unordered_map<uint32_t, ConnectionState> connections;
     std::mutex mutex;
-
+    std::unordered_map<int, RuleHelper::RuleHelper::RuleMeta> *m_metaMap = nullptr;
     AhoCorasick &ahoCorasick;
     VectorFilteringEngine &vectorEngine;
-
-    // pointer זמני לתוצאה של הפאקטה הנוכחית (רק בזמן processPacket)
+    RegexEngine &regexEngine;
     TcpPacketScanResult *currentScan = nullptr;
+    /**
+     * @brief build a scan window from previous buffered data and new TCP data
+     *
+     * @param buffer existing stream buffer
+     * @param data new TCP data
+     * @param len length of the new data
+     * @param tailSize number of bytes to keep from the previous buffer
+     * @return std::vector<std::uint8_t> combined scan window
+     */
+    static std::vector<std::uint8_t> makeWindow(
+        const std::vector<std::uint8_t> &buffer,
+        const std::uint8_t *data,
+        std::size_t len,
+        std::size_t tailSize);
+
+    /**
+     * @brief append new TCP data to a stream buffer and trim old data
+     *
+     * @param buffer stream buffer to update
+     * @param data new TCP data
+     * @param len length of the new data
+     */
+    static void appendTrim(
+        std::vector<std::uint8_t> &buffer,
+        const std::uint8_t *data,
+        std::size_t len);
+
+    /**
+     * @brief reuse previous confirmed scan results for an already confirmed flow
+     *
+     * @param state connection state with confirmed rule information
+     */
+    void reuseConfirmed(const ConnectionState &state);
+
+    /**
+     * @brief filter vector-filter hits according to rule metadata
+     *
+     * @param hits rule IDs found by vector filtering
+     * @param allowExact whether exact-offset rules are allowed
+     * @return std::vector<int> filtered rule IDs
+     */
+    std::vector<int> filterHits(
+        const std::vector<int> &hits,
+        bool allowExact) const;
+
+    /**
+     * @brief run vector filtering on a TCP scan window
+     *
+     * @param vfWindow vector-filter scan window
+     * @param data new TCP data
+     * @param len length of the new data
+     * @param bestHits output vector for the selected rule hits
+     * @return true if vector filtering found relevant hits
+     */
+    bool runVf(
+        const std::vector<std::uint8_t> &vfWindow,
+        const std::uint8_t *data,
+        std::size_t len,
+        std::vector<int> &bestHits);
+
+    /**
+     * @brief run Aho-Corasick confirmation on a TCP scan window
+     *
+     * @param state connection state to update
+     * @param bestHits rule IDs found by vector filtering
+     * @param ahoWindow Aho-Corasick scan window
+     * @return true if Aho-Corasick confirmed a match
+     */
+    bool runAho(
+        ConnectionState &state,
+        const std::vector<int> &bestHits,
+        const std::vector<std::uint8_t> &ahoWindow);
+
+    /**
+     * @brief run regex confirmation on a TCP scan window
+     *
+     * @param state connection state to update
+     * @param bestHits rule IDs found by vector filtering
+     * @param vfWindow regex scan window
+     * @return true if regex confirmed a match
+     */
+    bool runRegex(
+        ConnectionState &state,
+        const std::vector<int> &bestHits,
+        const std::vector<std::uint8_t> &vfWindow);
+
+    /**
+     * @brief inspect TCP flow data using the filtering pipeline
+     *
+     * @param state connection state to inspect and update
+     * @param vfWindow vector-filter scan window
+     * @param ahoWindow Aho-Corasick scan window
+     * @param data new TCP data
+     * @param len length of the new data
+     * @param senderIp IP address of the sender side
+     */
+    void inspectFlow(
+        ConnectionState &state,
+        const std::vector<std::uint8_t> &vfWindow,
+        const std::vector<std::uint8_t> &ahoWindow,
+        const std::uint8_t *data,
+        std::size_t len,
+        const std::string &senderIp);
 };
