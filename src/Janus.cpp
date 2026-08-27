@@ -29,7 +29,7 @@ void Janus::createWorkerThreads()
         workerThreads.emplace_back(std::make_unique<WorkerThread>(i));
     }
 }
-bool Janus::addRuleToAllWorkers(const RuleHelper::RuleMeta &meta)
+bool Janus::addRuleToAllWorkers(RuleHelper::RuleMeta &meta)
 {
     bool ok = true;
 
@@ -51,24 +51,33 @@ bool Janus::addRuleToAllWorkers(const RuleHelper::RuleMeta &meta)
 }
 void Janus::init()
 {
-    std::ifstream f("/app/dpi_rules.txt");
-    if (!f.is_open())
+    try
     {
-        Logger::error("Could not open dpi_rules.txt");
-        return;
+        auto loaded = RuleLoader::loadFromFile("/app/rules.json");
+
+        std::size_t ahoCount = 0;
+
+        for (const auto &[ruleId, meta] : loaded.metaByRuleId)
+        {
+            for (const auto &pattern : meta.aho_patterns)
+            {
+                if (!pattern.empty())
+                {
+                    globalAhoCorasick.addString(pattern);
+                    ++ahoCount;
+                }
+            }
+        }
+
+        globalAhoCorasick.prepare();
+    }
+    catch (const std::exception &ex)
+    {
+        Logger::error(std::format(
+            "Failed to load Aho-Corasick patterns from rules.json: {}",
+            ex.what()));
     }
 
-    std::string line;
-    while (std::getline(f, line))
-    {
-        if (!line.empty() && line.back() == '\r')
-            line.pop_back();
-
-        if (!line.empty())
-            globalAhoCorasick.addString(line);
-    }
-
-    globalAhoCorasick.prepare();
     createWorkerThreads();
 }
 

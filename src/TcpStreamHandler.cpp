@@ -147,6 +147,7 @@ bool TcpStreamHandler::runVf(
     bool anyVf = false;
 
     const std::size_t maxShift = std::min<std::size_t>(64, vfWindow.size());
+    bestHits.clear();
 
     for (std::size_t i = 0; i <= maxShift; ++i)
     {
@@ -160,24 +161,12 @@ bool TcpStreamHandler::runVf(
         if (!validHits.empty())
         {
             anyVf = true;
-            bestHits = std::move(validHits);
-            break;
+            bestHits.insert(bestHits.end(), validHits.begin(), validHits.end());
         }
     }
 
-    if (!anyVf)
-    {
-        std::span<const std::uint8_t> payload(data, len);
-
-        auto hits = vectorEngine.scanPayload(payload);
-        auto validHits = filterHits(hits, false);
-
-        if (!validHits.empty())
-        {
-            anyVf = true;
-            bestHits = std::move(validHits);
-        }
-    }
+    std::sort(bestHits.begin(), bestHits.end());
+    bestHits.erase(std::unique(bestHits.begin(), bestHits.end()), bestHits.end());
 
     const auto vfEnd = std::chrono::steady_clock::now();
     const uint64_t vfEndMs = nowUnixMs();
@@ -324,13 +313,13 @@ void TcpStreamHandler::inspectFlow(
 
     if (runAho(state, bestHits, ahoWindow))
     {
-        BlacklistHandler::addToIPBlacklist(senderIp);
+        // BlacklistHandler::addToIPBlacklist(senderIp);
         return;
     }
 
     if (runRegex(state, bestHits, vfWindow))
     {
-        BlacklistHandler::addToIPBlacklist(senderIp);
+        // BlacklistHandler::addToIPBlacklist(senderIp);
     }
 }
 void TcpStreamHandler::onDataReady(int8_t side, const pcpp::TcpStreamData &tcpData, void *userCookie)

@@ -2,13 +2,7 @@
 
 void AhoCorasick::calcFailureLink(const int vertex)
 {
-    if (vertex == _root)
-    {
-        _trie[vertex].failure_link = _root;
-        return;
-    }
-
-    if (_trie[vertex].parent == _root)
+    if (vertex == _root || _trie[vertex].parent == _root)
     {
         _trie[vertex].failure_link = _root;
         return;
@@ -64,7 +58,7 @@ void AhoCorasick::addString(const std::string &pattern)
     int curr_vertex = _root;
     for (const char c : pattern)
     {
-        if (_trie[curr_vertex].children.find(c) == _trie[curr_vertex].children.end()) // char doesn't exists, create one
+        if (_trie[curr_vertex].children.find(c) == _trie[curr_vertex].children.end()) // char doesn't exist, create one
         {
             _trie.push_back(Vertex{});
             _trie[_size].parent = curr_vertex;
@@ -105,7 +99,6 @@ std::optional<std::string> AhoCorasick::search(std::string_view text)
 
     for (int i = 0; i < text.size(); ++i)
     {
-        // Calculating new node in the trie
         while (true)
         {
             // If we have the edge, then use it

@@ -8,13 +8,14 @@ const RULES_API_BASE = `http://${window.location.hostname || 'localhost'}:8000`;
 type ManagedRule = {
   id: string;
   desc: string;
-  proto: 'ANY' | 'TCP' | 'UDP';
+  proto?: 'ANY' | 'TCP' | 'UDP';
   action: 'ALLOW' | 'FLAG' | 'BLOCK';
-  offset_mode: 'PAYLOAD' | 'EXACT';
+  offset_mode?: 'PAYLOAD' | 'EXACT';
   offset: number;
   length: number;
   value_hex: string;
   regex: string;
+  aho_patterns?: string[];
 };
 
 type RulesResponse = {
@@ -28,26 +29,38 @@ type RulesResponse = {
 type RuleFormState = {
   id: string;
   desc: string;
-  proto: 'ANY' | 'TCP' | 'UDP';
-  action: 'ALLOW' | 'FLAG' | 'BLOCK';
-  offset_mode: 'PAYLOAD' | 'EXACT';
   offset: string;
-  length: string;
-  value_hex: string;
+  anchor: string;
+  aho_patterns: string;
   regex: string;
 };
 
 const initialForm: RuleFormState = {
   id: '',
   desc: '',
-  proto: 'ANY',
-  action: 'FLAG',
-  offset_mode: 'PAYLOAD',
   offset: '0',
-  length: '4',
-  value_hex: '',
+  anchor: '',
+  aho_patterns: '',
   regex: '',
 };
+
+function hexToAscii(hex: string): string {
+  if (!hex || hex.length % 2 !== 0) return '';
+
+  try {
+    const chars = hex.match(/.{1,2}/g) ?? [];
+    return chars
+      .map((byte) => {
+        const code = parseInt(byte, 16);
+        if (Number.isNaN(code)) return '';
+        if (code < 32 || code > 126) return '.';
+        return String.fromCharCode(code);
+      })
+      .join('');
+  } catch {
+    return '';
+  }
+}
 
 export function RulesPoliciesPage() {
   const [rules, setRules] = useState<ManagedRule[]>([]);
@@ -81,7 +94,7 @@ export function RulesPoliciesPage() {
 
   const blockRules = useMemo(() => rules.filter((rule) => rule.action === 'BLOCK').length, [rules]);
   const flagRules = useMemo(() => rules.filter((rule) => rule.action === 'FLAG').length, [rules]);
-  const exactRules = useMemo(() => rules.filter((rule) => rule.offset_mode === 'EXACT').length, [rules]);
+  const regexRules = useMemo(() => rules.filter((rule) => rule.regex && rule.regex.trim().length > 0).length, [rules]);
 
   const onChange = <K extends keyof RuleFormState>(key: K, value: RuleFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -94,18 +107,25 @@ export function RulesPoliciesPage() {
     setSuccess(null);
 
     try {
+      const anchor = form.anchor;
+
+      if (!anchor.trim()) {
+        throw new Error('Anchor string is required');
+      }
+
+      if (new TextEncoder().encode(anchor).length > 4) {
+        throw new Error('Anchor must be 1-4 ASCII characters');
+      }
+
       const response = await fetch(`${RULES_API_BASE}/rules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: form.id.trim(),
           desc: form.desc.trim(),
-          proto: form.proto,
-          action: form.action,
-          offset_mode: form.offset_mode,
           offset: Number(form.offset),
-          length: Number(form.length),
-          value_hex: form.value_hex.trim(),
+          anchor,
+          aho_patterns: form.aho_patterns,
           regex: form.regex.trim(),
         }),
       });
@@ -116,7 +136,7 @@ export function RulesPoliciesPage() {
         throw new Error(data?.detail || 'Failed to create rule');
       }
 
-      setSuccess('Rule added successfully. Janus will reload it on the next packet.');
+      setSuccess('Rule added successfully. VF is live; new Aho patterns are active after restarting Janus Core.');
       setForm(initialForm);
       await loadRules();
     } catch (err) {
@@ -131,7 +151,9 @@ export function RulesPoliciesPage() {
       <section className="page-hero-row events-hero-row">
         <div>
           <h2 className="page-section-title">Rules & Policies</h2>
-          <p className="page-section-subtitle">Add new Vector Filter rules directly into the shared ICD file.</p>
+          <p className="page-section-subtitle">
+            Add Vector Filter anchors, Aho-Corasick signatures, and optional Regex confirmation into the shared rules file.
+          </p>
         </div>
       </section>
 
@@ -153,23 +175,22 @@ export function RulesPoliciesPage() {
           <div className="stat-value">{formatCompact(flagRules)}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Exact Offset Rules</div>
-          <div className="stat-value">{formatCompact(exactRules)}</div>
+          <div className="stat-label">Regex Rules</div>
+          <div className="stat-value">{formatCompact(regexRules)}</div>
         </div>
       </section>
 
       <section className="policy-layout">
         <SectionCard
           title="Current Rules"
-          subtitle="Existing rules from icd.json"
+          subtitle="Existing rules from rules.json"
           className="policy-table-card"
         >
           <div className="policy-table-header">
             <span>ID</span>
-            <span>Protocol</span>
             <span>Action</span>
             <span>Offset</span>
-            <span>Length</span>
+            <span>Anchor</span>
             <span>Status</span>
           </div>
 
@@ -179,13 +200,32 @@ export function RulesPoliciesPage() {
                 <div>
                   <div className="strong">{rule.id}</div>
                   <div className="detail-label">{rule.desc || 'No description'}</div>
+
+                  {rule.aho_patterns && rule.aho_patterns.length > 0 ? (
+                    <div className="detail-label">
+                      Aho: {rule.aho_patterns.slice(0, 3).join(', ')}
+                      {rule.aho_patterns.length > 3 ? ` +${rule.aho_patterns.length - 3} more` : ''}
+                    </div>
+                  ) : null}
+
+                  {rule.regex && rule.regex.trim().length > 0 ? (
+                    <div className="detail-label">
+                      Regex: {rule.regex.length > 80 ? `${rule.regex.slice(0, 80)}...` : rule.regex}
+                    </div>
+                  ) : null}
                 </div>
-                <div>{rule.proto}</div>
+
                 <div className={`policy-action policy-action-${rule.action.toLowerCase()}`}>{rule.action}</div>
+
+                <div>{rule.offset}</div>
+
                 <div>
-                  {rule.offset_mode}:{rule.offset}
+                  <div className="strong">{hexToAscii(rule.value_hex) || '-'}</div>
+                  <div className="detail-label">
+                    len {rule.length} · {rule.value_hex}
+                  </div>
                 </div>
-                <div>{rule.length}</div>
+
                 <div>
                   <span className="status-pill-inline">Active</span>
                 </div>
@@ -193,14 +233,14 @@ export function RulesPoliciesPage() {
             ))}
 
             {!loading && rules.length === 0 ? (
-              <div className="placeholder-box">No rules found in icd.json.</div>
+              <div className="placeholder-box">No rules found in rules.json.</div>
             ) : null}
           </div>
         </SectionCard>
 
         <SectionCard
           title="Add New Rule"
-          subtitle="Creates a new VF rule and writes it to icd.json"
+          subtitle="Creates a VF anchor with optional Aho-Corasick and Regex confirmation"
           className="rule-editor-card"
         >
           <form className="rule-editor-grid" onSubmit={submitRule}>
@@ -209,7 +249,7 @@ export function RulesPoliciesPage() {
               <input
                 value={form.id}
                 onChange={(event) => onChange('id', event.target.value)}
-                placeholder="SQLI_CUSTOM"
+                placeholder="ENV_DEMO"
                 required
               />
             </label>
@@ -225,37 +265,6 @@ export function RulesPoliciesPage() {
 
             <div className="editor-field-row">
               <label className="editor-field">
-                <span>Protocol</span>
-                <select value={form.proto} onChange={(event) => onChange('proto', event.target.value as RuleFormState['proto'])}>
-                  <option value="ANY">ANY</option>
-                  <option value="TCP">TCP</option>
-                  <option value="UDP">UDP</option>
-                </select>
-              </label>
-
-              <label className="editor-field">
-                <span>Action</span>
-                <select value={form.action} onChange={(event) => onChange('action', event.target.value as RuleFormState['action'])}>
-                  <option value="ALLOW">ALLOW</option>
-                  <option value="FLAG">FLAG</option>
-                  <option value="BLOCK">BLOCK</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="editor-field-row">
-              <label className="editor-field">
-                <span>Offset Mode</span>
-                <select
-                  value={form.offset_mode}
-                  onChange={(event) => onChange('offset_mode', event.target.value as RuleFormState['offset_mode'])}
-                >
-                  <option value="PAYLOAD">PAYLOAD</option>
-                  <option value="EXACT">EXACT</option>
-                </select>
-              </label>
-
-              <label className="editor-field">
                 <span>Offset</span>
                 <input
                   type="number"
@@ -267,36 +276,32 @@ export function RulesPoliciesPage() {
               </label>
             </div>
 
-            <div className="editor-field-row">
-              <label className="editor-field">
-                <span>Length (1-4)</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={4}
-                  value={form.length}
-                  onChange={(event) => onChange('length', event.target.value)}
-                  required
-                />
-              </label>
-
-              <label className="editor-field">
-                <span>Value Hex</span>
-                <input
-                  value={form.value_hex}
-                  onChange={(event) => onChange('value_hex', event.target.value.toUpperCase())}
-                  placeholder="2F2E656E"
-                  required
-                />
-              </label>
-            </div>
+            <label className="editor-field">
+              <span>VF Anchor String (1-4 ASCII chars)</span>
+              <input
+                value={form.anchor}
+                maxLength={4}
+                onChange={(event) => onChange('anchor', event.target.value)}
+                placeholder="/.en"
+                required
+              />
+            </label>
 
             <label className="editor-field editor-textarea-field">
-              <span>Regex (optional)</span>
+              <span>Aho-Corasick Signatures</span>
+              <textarea
+                value={form.aho_patterns}
+                onChange={(event) => onChange('aho_patterns', event.target.value)}
+                placeholder={['/.env', 'GET /.env', 'POST /.env'].join('\n')}
+              />
+            </label>
+
+            <label className="editor-field editor-textarea-field">
+              <span>Regex Pattern</span>
               <textarea
                 value={form.regex}
                 onChange={(event) => onChange('regex', event.target.value)}
-                placeholder="(?i)union\\s+select"
+                placeholder={'\\/\\.env($|\\?|\\s)'}
               />
             </label>
 

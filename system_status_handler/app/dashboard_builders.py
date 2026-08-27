@@ -77,26 +77,22 @@ def build_dashboard_overview(payload: dict[str, Any], queue_depth: int) -> Any:
         item.name = display_protocol_name(row.get("protocol") or "PROTOCOL_UNSPECIFIED")
         item.total_packets = int(row.get("total_packets") or 0)
 
-    stage_order = {
-    "ENGINE_STAGE_PREPROCESS": 0,
-    "ENGINE_STAGE_POLICY": 1,
-    "ENGINE_STAGE_VECTOR_FILTER": 2,  # displayed as SIMD
-    "ENGINE_STAGE_AHO": 3,
-    "ENGINE_STAGE_REGEX": 4,
+    stage_counts = {
+        str(row.get("stage") or ""): int(row.get("samples") or 0)
+        for row in stage_latency
     }
 
-    ordered_stage_latency = sorted(
-        stage_latency,
-        key=lambda row: (
-            stage_order.get(row.get("stage") or "", 999),
-            str(row.get("stage") or ""),
-        ),
-    )
+    wanted_stages = [
+        ("ENGINE_STAGE_POLICY", "SPI"),
+        ("ENGINE_STAGE_VECTOR_FILTER", "SIMD"),
+        ("ENGINE_STAGE_AHO", "Aho"),
+        ("ENGINE_STAGE_REGEX", "Regex"),
+    ]
 
-    for row in ordered_stage_latency:
+    for stage_key, label in wanted_stages:
         item = msg.detection_results.add()
-        item.name = display_stage_name(row.get("stage") or "ENGINE_STAGE_UNSPECIFIED")
-        item.total = int(row.get("samples") or 0)
+        item.name = label
+        item.total = stage_counts.get(stage_key, 0)
     for row in top_source_ips:
         item = msg.top_source_ips.add()
         total = int(row.get("total_packets") or 0)

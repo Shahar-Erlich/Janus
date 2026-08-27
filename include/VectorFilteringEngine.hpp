@@ -56,7 +56,19 @@ public:
      * @return const std::string& the description of the rule
      */
     const std::string &describe(int id) const;
+    /**
+     * @brief add a new rule to the vector filtering engine
+     *
+     * @param newRule rule to add
+     * @return true if the rule was added successfully
+     * @return false if the rule could not be added
+     */
     bool addRuleToVectorEngine(const VFRule &newRule);
+    /**
+     * @brief set the rule metadata map used by the vector engine
+     *
+     * @param meta pointer to the rule metadata map
+     */
     void setRuleMeta(std::unordered_map<int, RuleHelper::RuleMeta> *meta) { metaByRuleId = meta; }
 
 private:
@@ -64,6 +76,10 @@ private:
 
     using mask_t = typename simd_u8::mask_type;
 
+    /**
+     * @brief key used to group rules by offset and length
+     *
+     */
     struct GroupKey
     {
         std::size_t offset;
@@ -83,17 +99,21 @@ private:
         }
     };
 
+    /**
+     * @brief group of vector filtering rules with the same offset and length
+     *
+     */
     struct Group
     {
         std::size_t offset = 0;
         std::uint8_t length = 0;
         int groupRuleCount = 0;
 
-        std::vector<std::vector<std::uint8_t>> anchorBytes;
+        std::vector<std::vector<std::uint8_t>> anchorBytes; // vector of each n-th byte vector, i.e all 0 bytes, 1 bytes etc
         std::vector<int> ruleIDs;
 
         std::size_t lanesPadded = 0;
-        std::bitset<256> firstByteBitmap{};
+        std::bitset<256> firstByteBitmap{}; // quick check bytemap
     };
 
     std::unordered_map<GroupKey, Group, GroupKeyHash> m_groups;
@@ -105,6 +125,11 @@ private:
      * @param rulesInGroup rules to insert
      */
     static void padAndPack(Group &group, const std::vector<VFRule> &rulesInGroup);
+    /**
+     * @brief add a rule from metadata into the vector filtering engine
+     *
+     * @param newRule rule metadata to add
+     */
     void addRule(RuleHelper::RuleMeta &newRule);
     std::unordered_map<int, RuleHelper::RuleMeta> *metaByRuleId = nullptr;
 };

@@ -43,7 +43,7 @@ void VectorFilteringEngine::build(const std::vector<VFRule> &rules)
     for (const auto &rule : rules)
     {
         if (rule.length < 1 || rule.length > maxRuleLength)
-            throw std::invalid_argument("VFRule.length must be 1..4");
+            throw std::invalid_argument("Illegal rule length");
 
         buckets[{rule.offset, rule.length}].push_back(rule);
         m_ruleDescriptions[rule.ruleId] = rule.description;
@@ -128,7 +128,7 @@ void VectorFilteringEngine::padAndPack(Group &group, const std::vector<VFRule> &
     constexpr std::size_t width = simd_u8::size();
 
     const std::size_t size = rulesInGroup.size();
-    const std::size_t padded = ((size + width - 1) / width) * width;
+    const std::size_t padded = ((size + width - 1) / width) * width; // get closest rounded up multiplier of simd width
     group.anchorBytes.assign(
         group.length,
         std::vector<std::uint8_t>(padded, 0));
@@ -162,22 +162,20 @@ static simd_u8::mask_type compareVectors(simd_u8 payloadVector, simd_u8 anchorVe
 std::vector<int> VectorFilteringEngine::scanPayload(std::span<const std::uint8_t> payload) const
 {
     std::vector<int> hits;
-    hits.reserve(16);
 
     constexpr std::size_t width = simd_u8::size();
 
-    for (const auto &g : m_groups)
+    for (const auto &[_, group] : m_groups)
     {
-        auto &group = g.second;
-        if (payload.size() < group.offset + group.length)
+        if (payload.size() < group.offset + group.length ||
+            !bitmapHas(group.firstByteBitmap, payload[group.offset]))
             continue;
         std::vector<simd_u8> payloadVectors;
         for (int i = 0; i < group.length; i++)
         {
             payloadVectors.emplace_back(payload[group.offset + i]);
         }
-        if (!bitmapHas(group.firstByteBitmap, payload[group.offset]))
-            continue;
+
         for (std::size_t base = 0; base < group.lanesPadded; base += width)
         {
             const simd_u8 vectorAnchor0(&group.anchorBytes.at(0)[base], simd_ns::element_aligned);
@@ -201,9 +199,6 @@ std::vector<int> VectorFilteringEngine::scanPayload(std::span<const std::uint8_t
             }
         }
     }
-
-    std::sort(hits.begin(), hits.end());
-    hits.erase(std::unique(hits.begin(), hits.end()), hits.end());
 
     return hits;
 }

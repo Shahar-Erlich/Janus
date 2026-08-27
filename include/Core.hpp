@@ -54,7 +54,7 @@ public:
      *
      */
     void init();
-    bool addRule(const RuleHelper::RuleMeta &meta);
+    bool addRule(RuleHelper::RuleMeta &meta);
 
 private:
     mnl_socket *m_nlSocket = nullptr;

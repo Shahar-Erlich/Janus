@@ -56,10 +56,16 @@ static const char *actionName(RuleHelper::RuleMeta::Action a)
         return "?";
     }
 }
-bool PacketPolicy::addRule(const RuleHelper::RuleMeta &meta)
+bool PacketPolicy::addRule(RuleHelper::RuleMeta &meta)
 {
     std::lock_guard<std::mutex> lock(policyMutex);
+    while (metaByRuleId.contains(meta.ruleId))
+    {
+        ++meta.ruleId;
 
+        if (meta.ruleId <= 0)
+            meta.ruleId = 1;
+    }
     VFRule rule{};
     rule.ruleId = meta.ruleId;
     rule.offset = static_cast<std::size_t>(meta.exact_offset);
@@ -120,10 +126,10 @@ std::vector<int> PacketPolicy::scanUdpVf(std::span<const uint8_t> payload) const
             auto iterator = metaByRuleId.find(ruleId);
             if (iterator != metaByRuleId.end())
             {
-                if (iterator->second.offset_mode == "EXACT" && shift != 0)
-                {
-                    continue;
-                }
+                // if (iterator->second.offset_mode == "EXACT" && shift != 0)
+                // {
+                //     continue;
+                // }
                 rulesHit.push_back(ruleId);
             }
         }
@@ -214,7 +220,9 @@ bool PacketPolicy::udpHasAhoHits(Decision &finalDecision,
     bool confirmedHit = false;
     uint64_t ahoStartMs = nowUnixMs();
     auto ahoStart = std::chrono::steady_clock::now();
+
     auto ahoResult = ahoCorasick.search(data);
+
     auto ahoEnd = std::chrono::steady_clock::now();
     uint64_t ahoEndMs = nowUnixMs();
     uint64_t ahoDurationUs =
@@ -263,7 +271,6 @@ void PacketPolicy::scanRegexUDP(bool &blockPacket,
             }
         }
     }
-
     auto regexEnd = std::chrono::steady_clock::now();
     regexEndMs = nowUnixMs();
     regexDurationUs =
@@ -322,7 +329,7 @@ Decision PacketPolicy::evaluateUDP(const pcpp::Packet &packet,
     if (blockPacket && worst == RuleHelper::RuleMeta::Action::BLOCK)
     {
         finalDecision.verdict = FinalVerdict::DROP;
-        BlacklistHandler::addToIPBlacklist(packet.getLayerOfType<pcpp::IPv4Layer>()->getSrcIPAddress().toString());
+        // BlacklistHandler::addToIPBlacklist(packet.getLayerOfType<pcpp::IPv4Layer>()->getSrcIPAddress().toString());
     }
     else
         finalDecision.verdict = FinalVerdict::ALLOW;
@@ -343,8 +350,7 @@ Decision PacketPolicy::evaluate(const pcpp::Packet &packet)
     Decision finalDecision{};
 
     if (BlacklistHandler::isIPBlacklisted(packet) ||
-        BlacklistHandler::isPortBlacklisted(packet) ||
-        !BlacklistHandler::isProtocolAllowed(packet))
+        BlacklistHandler::isPortBlacklisted(packet))
     {
         finalDecision.verdict = FinalVerdict::DROP;
         finishPolicy("packet denied by blacklist/policy", start, policyStamp, finalDecision);

@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import string
 import ipaddress
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -28,18 +28,19 @@ logger = logging.getLogger(__name__)
 RULES_LOCK = asyncio.Lock()
 BLACKLIST_LOCK = asyncio.Lock()
 
+
 class RuleCreateRequest(BaseModel):
     id: str = Field(..., min_length=1, max_length=120)
     desc: str = Field(default="", max_length=400)
-    proto: str = Field(default="ANY")
-    action: str = Field(default="FLAG")
-    offset_mode: str = Field(default="PAYLOAD")
     offset: int = Field(default=0, ge=0)
-    length: int = Field(..., ge=1, le=4)
-    value_hex: str = Field(..., min_length=2)
-    regex: str = Field(default="")
+    anchor: str = Field(..., min_length=1, max_length=4)
+    aho_patterns: str = Field(default="", max_length=4000)
+    regex: str = Field(default="", max_length=1000)
+
+
 class BlacklistAddressRequest(BaseModel):
     address: str = Field(..., min_length=1, max_length=64)
+
 
 def _read_icd() -> dict[str, Any]:
     path = Path(settings.icd_path)
@@ -56,6 +57,7 @@ def _read_icd() -> dict[str, Any]:
     data.setdefault("vf_rules", [])
     return data
 
+
 def _write_rule_json_atomic(data: dict[str, Any]) -> None:
     path = Path(settings.icd_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +67,8 @@ def _write_rule_json_atomic(data: dict[str, Any]) -> None:
     with open(path, "w", encoding="utf-8") as f:
         f.write(payload)
         f.flush()
+
+
 def _blacklist_path() -> Path:
     return Path(settings.ip_blacklist_path)
 
@@ -130,46 +134,91 @@ def _write_blacklist(addresses: list[str]) -> None:
     tmp_path.write_text(payload, encoding="utf-8")
     tmp_path.replace(path)
 
+
 def _normalize_rule(payload: RuleCreateRequest) -> dict[str, Any]:
     rule_id = payload.id.strip()
     desc = payload.desc.strip()
-    proto = payload.proto.strip().upper()
-    action = payload.action.strip().upper()
-    offset_mode = payload.offset_mode.strip().upper()
-    value_hex = payload.value_hex.strip().upper()
+    anchor = payload.anchor
+    aho_patterns_text = payload.aho_patterns
     regex = payload.regex.strip()
+
+    # Kept for compatibility with the existing C++/JSON rule format.
+    proto = "ANY"
+    offset_mode = "PAYLOAD"
+    action = "BLOCK"
 
     if not rule_id:
         raise HTTPException(status_code=400, detail="id is required")
 
-    if proto not in {"ANY", "TCP", "UDP"}:
-        raise HTTPException(status_code=400, detail="proto must be ANY, TCP, or UDP")
+    if "\n" in rule_id or "\r" in rule_id:
+        raise HTTPException(status_code=400, detail="id cannot contain newlines")
 
-    if action not in {"ALLOW", "FLAG", "BLOCK"}:
-        raise HTTPException(status_code=400, detail="action must be ALLOW, FLAG, or BLOCK")
-
-    if offset_mode not in {"PAYLOAD", "EXACT"}:
-        raise HTTPException(status_code=400, detail="offset_mode must be PAYLOAD or EXACT")
-
-    if len(value_hex) % 2 != 0:
-        raise HTTPException(status_code=400, detail="value_hex must have even length")
-
-    if any(ch not in string.hexdigits for ch in value_hex):
-        raise HTTPException(status_code=400, detail="value_hex must contain only hex characters")
-
-    if len(value_hex) // 2 != payload.length:
+    if not all(ch.isalnum() or ch in {"_", "-"} for ch in rule_id):
         raise HTTPException(
             status_code=400,
-            detail="length must match the number of bytes in value_hex",
+            detail="id may only contain letters, numbers, underscore, or dash",
         )
+
+    if payload.offset > 4096:
+        raise HTTPException(status_code=400, detail="offset is too large")
+
+    if not anchor:
+        raise HTTPException(status_code=400, detail="anchor is required")
+
+    try:
+        anchor_bytes = anchor.encode("ascii")
+    except UnicodeEncodeError:
+        raise HTTPException(status_code=400, detail="anchor must contain ASCII characters only")
+
+    if not 1 <= len(anchor_bytes) <= 4:
+        raise HTTPException(status_code=400, detail="anchor length must be 1-4 bytes")
+
+    aho_patterns = [
+        line.strip()
+        for line in aho_patterns_text.splitlines()
+        if line.strip()
+    ]
+
+    if len(aho_patterns) > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="too many Aho-Corasick patterns; max is 100",
+        )
+
+    for pattern in aho_patterns:
+        if len(pattern) > 300:
+            raise HTTPException(
+                status_code=400,
+                detail="each Aho-Corasick pattern must be at most 300 characters",
+            )
+
+        try:
+            pattern.encode("ascii")
+        except UnicodeEncodeError:
+            raise HTTPException(
+                status_code=400,
+                detail="Aho-Corasick patterns must contain ASCII characters only",
+            )
+
+    if regex:
+        try:
+            regex.encode("ascii")
+        except UnicodeEncodeError:
+            raise HTTPException(status_code=400, detail="regex must contain ASCII characters only")
+
+        try:
+            re.compile(regex)
+        except re.error as exc:
+            raise HTTPException(status_code=400, detail=f"invalid regex: {exc}")
 
     return {
         "id": rule_id,
         "proto": proto,
         "offset_mode": offset_mode,
         "offset": int(payload.offset),
-        "length": int(payload.length),
-        "value_hex": value_hex,
+        "length": len(anchor_bytes),
+        "value_hex": anchor_bytes.hex().upper(),
+        "aho_patterns": aho_patterns,
         "regex": regex,
         "action": action,
         "desc": desc,
@@ -219,7 +268,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Janus system_status_handler", lifespan=lifespan)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -256,6 +304,8 @@ async def healthz() -> dict[str, object]:
 @app.get("/rules")
 async def list_rules() -> dict[str, Any]:
     return _read_icd()
+
+
 @app.get("/blacklist")
 async def get_blacklist() -> dict[str, Any]:
     async with BLACKLIST_LOCK:
@@ -303,6 +353,8 @@ async def delete_blacklist_address(address: str) -> dict[str, Any]:
         "removed": len(updated_addresses) != len(addresses),
         "count": updated["count"],
     }
+
+
 async def _send_rule_to_cpp(rule: dict[str, Any]) -> dict[str, Any]:
     command = {
         "type": "ADD_RULE",
@@ -366,6 +418,8 @@ async def _send_rule_to_cpp(rule: dict[str, Any]) -> dict[str, Any]:
                 await writer.wait_closed()
             except Exception:
                 pass
+
+
 @app.post("/rules")
 async def create_rule(payload: RuleCreateRequest) -> dict[str, Any]:
     normalized = _normalize_rule(payload)
@@ -391,8 +445,8 @@ async def create_rule(payload: RuleCreateRequest) -> dict[str, Any]:
         same_anchor = next(
             (
                 r for r in rules
-                if str(r.get("proto", "")).upper() == normalized["proto"]
-                and str(r.get("offset_mode", "")).upper() == normalized["offset_mode"]
+                if str(r.get("proto", "ANY")).upper() == normalized["proto"]
+                and str(r.get("offset_mode", "PAYLOAD")).upper() == normalized["offset_mode"]
                 and int(r.get("offset", -1)) == normalized["offset"]
                 and int(r.get("length", -1)) == normalized["length"]
                 and str(r.get("value_hex", "")).upper() == normalized["value_hex"]
@@ -409,7 +463,7 @@ async def create_rule(payload: RuleCreateRequest) -> dict[str, Any]:
         # 1. First activate the rule inside the live C++ engine.
         core_response = await _send_rule_to_cpp(normalized)
 
-        # 2. Only after C++ accepts it, persist it to icd.json.
+        # 2. Only after C++ accepts it, persist it to icd.json/rules.json.
         rules.append(normalized)
         _write_rule_json_atomic(data)
 
@@ -427,6 +481,7 @@ async def create_rule(payload: RuleCreateRequest) -> dict[str, Any]:
         "core_response": core_response,
         "total_rules": len(rules),
     }
+
 
 if __name__ == "__main__":
     import uvicorn

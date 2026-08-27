@@ -134,7 +134,7 @@ void finishDecisionStamp(Decision &decision,
         hit->set_rule_id(rid);
     }
 }
-bool Core::addRule(const RuleHelper::RuleMeta &meta)
+bool Core::addRule(RuleHelper::RuleMeta &meta)
 {
     return packetPolicy && packetPolicy->addRule(meta);
 }

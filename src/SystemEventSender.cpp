@@ -271,6 +271,20 @@ static RuleHelper::RuleMeta ruleMetaFromText(const std::string &text)
     meta.id = id;
     meta.desc = ruleJson.value("desc", "");
     meta.regex_pattern = ruleJson.value("regex", "");
+    if (ruleJson.contains("aho_patterns") && ruleJson["aho_patterns"].is_array())
+    {
+        for (const auto &patternJson : ruleJson["aho_patterns"])
+        {
+            if (!patternJson.is_string())
+                continue;
+
+            std::string pattern = patternJson.get<std::string>();
+            if (!pattern.empty())
+            {
+                meta.aho_patterns.push_back(std::move(pattern));
+            }
+        }
+    }
     meta.action = RuleHelper::parseAction(action);
     meta.proto = RuleHelper::parseProto(proto);
     meta.offset_mode = ruleJson.value("offset_mode", "PAYLOAD");

@@ -45,7 +45,13 @@ public:
      * @brief initialize the global AhoCorasick engine and start all worker threads
      */
     static void init();
-    static bool addRuleToAllWorkers(const RuleHelper::RuleMeta &meta);
+    /**
+     * @brief add a rule dynamically to all worker threads
+     *
+     * @param meta rule metadata to add
+     * @return true if the rule was added successfully to all workers, false otherwise
+     */
+    static bool addRuleToAllWorkers(RuleHelper::RuleMeta &meta);
     static AhoCorasick globalAhoCorasick;
     static SystemEventSender systemEventSender;
     static std::vector<std::unique_ptr<WorkerThread>> workerThreads;

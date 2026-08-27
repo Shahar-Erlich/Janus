@@ -7,7 +7,7 @@
 
 int main()
 {
-    std::string pcapFilePath = "../pcaps/10kPackets_2.pcap";
+    std::string pcapFilePath = "../pcaps/companyTraffic_10k_2.pcap";
     auto pcapFile = std::make_unique<pcpp::PcapFileReaderDevice>(pcapFilePath);
     if (!pcapFile->open())
     {

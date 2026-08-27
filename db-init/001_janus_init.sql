@@ -219,7 +219,6 @@ FROM packet_events
 WHERE ts_unix_ms >= (EXTRACT(EPOCH FROM (now() - INTERVAL '1 hour')) * 1000)::bigint
 GROUP BY protocol
 ORDER BY total_packets DESC, protocol;
-
 CREATE OR REPLACE VIEW v_dashboard_stage_latency_last_hour AS
 SELECT
     stage,
@@ -232,21 +231,23 @@ FROM (
             stage,
             COUNT(*) AS samples,
             COALESCE(ROUND(AVG(duration_us)::numeric, 2), 0) AS avg_duration_us,
-            MAX(duration_us) AS max_duration_us
+            COALESCE(MAX(duration_us), 0) AS max_duration_us
         FROM packet_processing_traces
         WHERE started_unix_ms >= (EXTRACT(EPOCH FROM (now() - INTERVAL '1 hour')) * 1000)::bigint
           AND stage IN (
+              'ENGINE_STAGE_POLICY',
               'ENGINE_STAGE_VECTOR_FILTER',
               'ENGINE_STAGE_AHO',
               'ENGINE_STAGE_REGEX'
           )
         GROUP BY stage
     )
+
     SELECT
-        'ENGINE_STAGE_INSPECTABLE_PAYLOAD' AS stage,
-        COALESCE((SELECT samples FROM stage_counts WHERE stage = 'ENGINE_STAGE_VECTOR_FILTER'), 0) AS samples,
-        0::numeric AS avg_duration_us,
-        0::bigint AS max_duration_us,
+        'ENGINE_STAGE_POLICY' AS stage,
+        COALESCE((SELECT samples FROM stage_counts WHERE stage = 'ENGINE_STAGE_POLICY'), 0) AS samples,
+        COALESCE((SELECT avg_duration_us FROM stage_counts WHERE stage = 'ENGINE_STAGE_POLICY'), 0) AS avg_duration_us,
+        COALESCE((SELECT max_duration_us FROM stage_counts WHERE stage = 'ENGINE_STAGE_POLICY'), 0) AS max_duration_us,
         1 AS sort_order
 
     UNION ALL
@@ -277,7 +278,6 @@ FROM (
         4 AS sort_order
 ) s
 ORDER BY sort_order;
-
 CREATE OR REPLACE VIEW v_dashboard_top_source_ips_last_hour AS
 SELECT
     src_ip::TEXT AS source_ip,

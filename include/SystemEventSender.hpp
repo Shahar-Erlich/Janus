@@ -54,11 +54,23 @@ private:
      * waits for events to appear in the queue and forwards them to the system handler
      */
     void threadSendRun();
+    /**
+     * @brief worker thread loop for receiving dynamic rule updates
+     *
+     * waits for incoming control messages from the system handler and applies
+     * received rule updates while the sender is running
+     */
     void threadReceiveRun();
     /**
      * @brief establish a TCP connection to the external system handler
      */
     void connectSendToHandler();
+    /**
+     * @brief open the TCP receiver socket for control messages
+     *
+     * creates and binds the socket used to receive dynamic updates from the
+     * external system handler
+     */
     void openReceiverSocket();
     /**
      * @brief serialize and send an event to the system handler

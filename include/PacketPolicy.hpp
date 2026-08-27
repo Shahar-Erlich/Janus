@@ -59,7 +59,14 @@ public:
      * @return Decision if the packet should be allowed/dropped, also returns the stamps from each engine
      */
     Decision evaluate(const pcpp::Packet &packet);
-    bool addRule(const RuleHelper::RuleMeta &meta);
+
+    /**
+     * @brief add a new rule dynamically to the policy engines
+     *
+     * @param meta rule metadata to add
+     * @return true if the rule was added successfully, false otherwise
+     */
+    bool addRule(RuleHelper::RuleMeta &meta);
 
 private:
     /**
@@ -80,26 +87,52 @@ private:
     RuleHelper::RuleMeta::Action worstActionForHits(const std::vector<int> &hits, RuleHelper::RuleMeta::Proto proto) const;
 
     /**
-     * @brief reload rules from disk if the ICD file was modified
-     */
-    void reloadRulesFromDisk();
-    /**
-     * @brief reload the new rules from the disk into the vector filter system
+     * @brief evaluate a TCP packet using the TCP stream handler
      *
+     * @param packet packet to evaluate
+     * @param finalDecision current decision object
+     * @param start packet processing start time
+     * @param policyStamp processing stamp for the policy stage
+     * @return Decision final decision after TCP evaluation
      */
-    void reloadRulesIfChanged();
     Decision evaluateTCP(const pcpp::Packet &packet,
                          Decision finalDecision,
                          TimePoint start,
                          janus::common::ProcessingStamp policyStamp);
+    /**
+     * @brief evaluate a UDP packet directly through the filtering engines
+     *
+     * @param packet packet to evaluate
+     * @param finalDecision current decision object
+     * @param start packet processing start time
+     * @param policyStamp processing stamp for the policy stage
+     * @return Decision final decision after UDP evaluation
+     */
     Decision evaluateUDP(const pcpp::Packet &packet,
                          Decision &finalDecision,
                          TimePoint start,
                          janus::common::ProcessingStamp policyStamp);
+    /**
+     * @brief check if UDP payload has Aho-Corasick matches
+     *
+     * @param finalDecision current decision object
+     * @param payload UDP payload to scan
+     * @param policyStamp processing stamp for the policy stage
+     * @param data payload data as text
+     * @return true if Aho-Corasick found a match, false otherwise
+     */
     bool udpHasAhoHits(Decision &finalDecision,
                        std::span<const uint8_t> payload,
                        janus::common::ProcessingStamp &policyStamp,
                        std::string_view data);
+    /**
+     * @brief scan UDP payload with regex rules
+     *
+     * @param blockPacket set to true if regex requires the packet to be blocked
+     * @param finalDecision current decision object
+     * @param policyStamp processing stamp for the policy stage
+     * @param data payload data as text
+     */
     void scanRegexUDP(bool &blockPacket,
                       Decision &finalDecision,
                       janus::common::ProcessingStamp &policyStamp,

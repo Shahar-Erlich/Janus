@@ -5,15 +5,8 @@
 #include <cstdint>
 #include <string>
 #include <stdexcept>
-static std::uint32_t stringHash(const std::string &s)
-{
-    std::uint32_t h = 0;
+#include <functional>
 
-    for (unsigned char c : s)
-        h = h * 31 + c;
-
-    return h;
-}
 static std::string protoToString(RuleHelper::RuleMeta::Proto proto)
 {
     switch (proto)
@@ -75,6 +68,13 @@ std::vector<std::uint8_t> RuleHelper::hexToBytes(const std::string &hex)
 
     return out;
 }
+
+int hashToRuleId(std::size_t hashValue)
+{
+    constexpr int maxId = std::numeric_limits<int>::max();
+
+    return static_cast<int>(hashValue % (maxId - 1)) + MIN_RULE_ID;
+}
 int RuleHelper::idToRuleID(
     std::string_view id,
     std::string_view protoStr,
@@ -89,8 +89,8 @@ int RuleHelper::idToRuleID(
         offset,
         length,
         hex);
-
-    return static_cast<int>(stringHash(key) & 0x7fffffff);
+    std::hash<std::string> hash;
+    return hashToRuleId(hash(key));
 }
 int RuleHelper::idToRuleID(RuleMeta &rule)
 {

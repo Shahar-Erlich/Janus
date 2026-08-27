@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DetectionEngineBar } from '../../types';
 import { SectionCard } from '../SectionCard';
 
@@ -32,7 +32,15 @@ export function DetectionResultsChart({ data }: DetectionResultsChartProps) {
               radius={[12, 12, 0, 0]}
               fill="#a855f7"
               maxBarSize={44}
-            />
+            >
+              <LabelList
+                dataKey="total"
+                position="top"
+                fill="#d8e9ff"
+                fontSize={12}
+                fontWeight={700}
+              />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

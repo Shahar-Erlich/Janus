@@ -11,60 +11,34 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="95f8330a-194b-4c08-b917-3b6aa24024b1" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.vscode/c_cpp_properties.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/c_cpp_properties.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/blacklists/debug.log" beforeDir="false" afterPath="$PROJECT_DIR$/blacklists/debug.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/query/client-vscode/query.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/cache-v2-81f7ad477495e5f0bfcb.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/cmakeFiles-v1-5ae3101c9bb67c796cf9.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/codemodel-v2-acd87b0df918e20400db.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/directory-.-Debug-9ad1a58d4644cf6543fa.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/index-2026-03-11T17-52-02-0428.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-aho_corasick-Debug-68bff987fd69caaa8f4f.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-blacklist_handler-Debug-654b51583a5218075ac1.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-icd_loader-Debug-0e7c4b4cff769d75121d.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-janus-Debug-b131bb46699b96978247.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-janus_core-Debug-027aa8eb351ce6c5cde1.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-janus_logger-Debug-7f7096657f6d9c4fce41.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-main-Debug-ca4b48f2b60210742410.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-main_2-Debug-30d2eec6ceb70d125b28.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-main_3-Debug-97a754025535b701b96f.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-packet-Debug-63e6210b57b8bef579d9.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-policy_handler-Debug-60d7921f885bdc42827a.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-regex_engine-Debug-fcb82d86507c91c28702.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-tcp_handler-Debug-c849cd4380c53b9d9d31.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/target-vector_filter-Debug-073be5eb7f6b5fcb55c6.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/.cmake/api/v1/reply/toolchains-v1-35a93553c3195ba7a020.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeCache.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/4.2.3/CMakeCXXCompiler.cmake" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/4.2.3/CMakeDetermineCompilerABI_CXX.bin" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/4.2.3/CMakeSystem.cmake" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/4.2.3/CompilerIdCXX/CMakeCXXCompilerId.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/4.2.3/CompilerIdCXX/a.out" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/CMakeConfigureLog.yaml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/InstallScripts.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/TargetDirectories.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/cmake.check_cache" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/CMakeFiles/rules.ninja" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/build.ninja" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/cmake_install.cmake" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/compile_commands.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/blacklists/ip_blacklist.txt" beforeDir="false" afterPath="$PROJECT_DIR$/blacklists/ip_blacklist.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db-init/001_janus_init.sql" beforeDir="false" afterPath="$PROJECT_DIR$/db-init/001_janus_init.sql" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/entrypoint.sh" beforeDir="false" afterPath="$PROJECT_DIR$/entrypoint.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/overview/DetectionResultsChart.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/overview/DetectionResultsChart.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/RulesPoliciesPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/RulesPoliciesPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/Core.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/include/Core.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/Janus.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/include/Janus.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/PacketPolicy.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/include/PacketPolicy.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/RuleHelper.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/include/RuleHelper.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/SystemEventSender.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/include/SystemEventSender.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/TcpStreamHandler.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/include/TcpStreamHandler.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/VectorFilteringEngine.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/include/VectorFilteringEngine.hpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/main.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main_2.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/main_2.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main_3.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/main_3.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/BlacklistHandler.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/BlacklistHandler.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rules.json" beforeDir="false" afterPath="$PROJECT_DIR$/rules.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/AhoCorasick.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/AhoCorasick.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Core.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/Core.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/IcdLoader.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/IcdLoader.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Janus.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/Janus.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Logger.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/Logger.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/PacketPolicy.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/PacketPolicy.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/PcapParser.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/PcapParser.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/TcpSessionTracker.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/TcpSessionTracker.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/RuleHelper.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/RuleHelper.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/RuleLoader.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/RuleLoader.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/SystemEventSender.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/SystemEventSender.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/TcpStreamHandler.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/TcpStreamHandler.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/VectorFilteringEngine.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/VectorFilteringEngine.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/system_status_handler/app/dashboard_builders.py" beforeDir="false" afterPath="$PROJECT_DIR$/system_status_handler/app/dashboard_builders.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/system_status_handler/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/system_status_handler/app/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -112,6 +86,7 @@
   &quot;keyToString&quot;: {
     &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
     &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.PcapCreatorLegit.executor&quot;: &quot;Run&quot;,
     &quot;Python.packetLenTest.executor&quot;: &quot;Run&quot;,
     &quot;Python.pcapCreator.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.RadMigrateCodeStyle&quot;: &quot;true&quot;,
@@ -124,7 +99,7 @@
     &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
     &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
     &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;feature/frontend&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;code__cleanup&quot;,
     &quot;last_opened_file_path&quot;: &quot;/home/Shahar/College_Work/Janus&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
@@ -147,8 +122,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-3bd3a6803838-JavaScript-PY-261.22158.41" />
-        <option value="bundled-python-sdk-8c3867224628-b61e75351b1f-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-261.22158.41" />
+        <option value="bundled-python-sdk-c6d794e1806d-5bd6d13a2a75-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-262.8665.309" />
       </set>
     </attachedChunks>
   </component>
